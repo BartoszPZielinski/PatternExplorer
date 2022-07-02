@@ -1,0 +1,21 @@
+== Installation
+
+=== Requirements
+
+The code was tested only with https://www.swi-prolog.org/[*SWI Prolog*] (it may not work with other Prolog environments as it uses some non-standard libraries. Also module systems differ between Prolog interpreters). Functor `call_time/2` from 
+link:https://www.swi-prolog.org/pldoc/man?section=statistics[`statistics`]
+module which we use in tests was introduced relatively recently so a year-old installation of SWI Prolog may not have it. 
+
+Execution of the code should not depend on the operating system (it was tested on MacOS X and Windows 10) as it does not use any operating system specific libraries.
+
+Recompilation of documentation requires 
+https://docs.asciidoctor.org/[*AsciiDoc*].
+
+=== Installation 
+
+Clone the github repository:
+
+[source, bash]
+----
+git clone https://github.com/BartoszPZielinski/PatternExplorer
+----

@@ -1,0 +1,41 @@
+== Evaluation
+
+In order to rerun the tests call (in the `PatternExplorer` folder)
+
+[source, bash]
+----
+swipl timed_test.pl
+----
+
+Test will run for a long time, and after the end the interpreter quits automatically. See <<_timed_test_pl>> for information about how to modify tests.
+The successful run should generate file `raw_mesurements.csv`.
+
+In order to regenerate from `raw_mesurements.csv` the plot in the paper run
+[source, bash]
+----
+python3 create_plot.py
+----
+This should generate file `fig2.png` with the pplot. The script apart from python3 requires link:https://docs.python.org/3/library/csv.html[csv] and 
+link:https://matplotlib.org/[matplotlib] libraries installed.
+
+=== Description of generated csv file 
+
+The generated csv file contains the following fields:
+
+`matcher`:: matching automaton implementation. Possible values are:
+`match_list`::: the current implementation
+`match_list_ns`::: implementation which represents single skipped events by constrained variables
+`match_list_nsc`::: implementation which narrows skipped events so that each has a type.
+ntypes:: number of types used in the event schema. Possible values are:
+basic::: just types actually used in the bus traffic example
+aux::: types in the bus traffic example plus 20 additional spurious types.
+`max_len`:: maximal length of generated/matched instance
+`lambda`:: parameter of patterns used in the tests 
+`wall`:: total time of search
+`cpu`:: cpu time of search
+`inferences`:: number of inferences.
+
+=== Raw test results
+
+The raw test results used in the paper can be downloaded link:raw_mesurements.csv[here].
+

@@ -1,0 +1,223 @@
+== Using PatternExplorer
+
+=== Input file syntax
+
+The input file consists of a sequence of Prolog terms (each ending with a dot).
+One can use Prolog comments inside the input file.
+
+The first term contains optional descriptions of attribute domains. 
+It is recommended to limit the domain of `time` attribute (as well as any other
+attribute participating in any condition more complex than simple equality) 
+to a finite one. This is because contradictory clpfd  constraints may not be 
+recognized as such if their variables are not constrained to a finite domain.
+
+The term defining attribute domains is as follows:
+[source, prolog]
+----
+def_attr_domains([
+   attr_dom(attr1, x0..x1),
+   attr_dom(attr2, y0..y2),
+   ...  
+]).
+----
+
+where `attr1`, `attr2`, … are attribute names and `x0`, `x1`, `y0`, `y1`, … are 
+integers or symbols `inf` or `sup`. Thus e.g.,
+
+[source, prolog]
+----
+def_attr_domains([
+   attr_dom(time, 0..300),
+   attr_dom(delta_schedule, 0..200)   
+]).
+----
+
+declares that the value of attribute `time` will be between 0 and 300 and 
+the value of attribute `delta_schedule` will be between 0 and 200.
+
+
+The second term defines event schema (it is important that all events appearing in the event stream, i.e., all events except for aggregation events, have the attribute `time`). The form of this term is as follows:
+
+[source, prolog]
+----
+def_event_types([
+    event_type_specification_1,
+    event_type_specification_2,
+    event_type_specification_3,
+    ... 
+]).
+----
+
+E.g., example input file contains the following declaration: 
+
+[source, prolog]
+----
+def_event_types([
+    stop_enter(id, stop_id, delta_schedule, time),
+    stop_leave(id, stop_id, delta_schedule, time),
+    abrupt_accel(id, time),
+    abrupt_decel(id, time),
+    sharp_turn(id, dir, time),
+    driver_in(id, drv_id, time),
+    driver_out(id, drv_id, time),
+    velocity(id, max, min, avg, start_time, time),
+    location(id, location_id, time),
+    agg(cnt)
+]).
+----
+
+Observe that this is a proper Prolog term so  names of event types and names of attributes must not start with upper-case letters unless they are put inside single quotes.
+
+Next, there should appear pattern declarations. 
+Each pattern declaration has the form
+
+[source, prolog]
+----
+pattern(PatternId, select(
+    inp(V1, V2, ...),
+    out(W1, W2, ...),
+	Pattern
+)).
+----
+
+Here
+
+* `PatternId` is a pattern identifier (it can be a number or an atom, or any other ground term),
+* `V1`, `V2`, … are input variables (they must all be distinct, and to be useful they should occur in conditions in pattern `Pattern`, they must not, however, be bound by `Pattern`),
+* `W1`, `W2`, … are output variables (they must all be distinct, and they must all occur in the pattern `Pattern`),
+* `Pattern` is the actual pattern.
+
+NOTE: Input and output variables, as well as all the other variables occurring in `Pattern` must be actual Prolog variables. This means that they must start with a capital letter.
+
+For example, the file `example_data.pl` contains the following pattern declaration:
+
+[source, prolog]
+----
+pattern(11, select(inp(Se, K), out, 
+  filter(
+    event(driver_in, D), 
+    ref(D, id) #= ref(Se, id) #/\ 
+        ref(D, time) #> ref(Se, time) #/\
+        ref(D, time) #< ref(K, time)
+  )
+)).
+----
+
+Finally, input file can contain test declarations called "`examples`"`.
+There are four kinds of example declarations:
+
+* Declaration of a simple test for parameterless pattern (with no input variables) of the form
++
+--
+
+[source, prolog]
+----
+example(ExId, ex(PatternId)).
+----
+
+where `ExId` is a test identifier and `PatternId` is a pattern identifier.
+--
+
+* Declaration of a parametrized test of the form 
++
+--
+[source, prolog]
+----
+example(ExId, ex(PatternId, inp(e1, e2, ...))
+----
+
+where `ExId` and `PatternId` are like above and `e1`, `e2`, … are input _events_.
+--
+
+* Declaration of a test of a pattern with identifier `Pid1` with another pattern `Pid2`, where instances of `Pid1` are matched with `Pid2`:
++
+--
+[source, prolog]
+----
+example(ExId, ex(Pid1, 
+   out(V1, V2, ...)-inp(W1, W2, ...), Pid2)).
+----
+
+Here `ExId` is a test identifier, and expression
+
+[source, prolog]
+----
+out(V1, V2, ...)-inp(W1, W2, ...)
+----
+
+links output of `Pid1` with input of `Pid2`.
+--
+
+* Declaration of a test of a pattern with identifier `Pid1` with another pattern `Pid2`, where instances of `Pid1` are matched with `Pid2`, but in addition pattern 
+`Pid1` is not closed and has some input events:
++
+--
+[source, prolog]
+----
+example(ExId, ex(Pid1, 
+   inp(U1, U2, ...)-out(V1, V2, ...)-inp(W1, W2, ...), Pid2)).
+----
+
+Here `ExId` is a test identifier, and expression
+
+[source, prolog]
+----
+inp(U1, U2, ...)-out(V1, V2, ...)-inp(W1, W2, ...)
+----
+
+links output of `Pid1` with input of `Pid2`, and in addition it also sets the 
+input events `U1, U2, ...` of `Pid1`.
+--
+
+
+For instance, file `example_data.pl` contains the following declarations
+(among others):
+
+[source, prolog]
+----
+example(1, ex(10, out(X, T)-inp(X, T), 11)).
+example(2, ex(0)).
+example(21, ex(12, inp(driver_in(10, _, _)))).
+----
+
+=== Web tool CLI
+
+In order to run the web interface
+
+* Go to the command line and change the directory to the directory with tool source.
+* Create the input file with description of event types and patterns. To test the app one can use the example input file `example_data.pl` from the tool source directory.
+* Run the interpreter on the server.pl file:
++
+[source, bash]
+----
+swipl ./server.pl
+----
+
+* From the Prolog interpreter run the following command (adjust if necessary):
++
+--
+[source, prolog]
+----
+server(
+    3000, <1>
+    'example_data.pl' <2>
+).
+----
+<1> port number the web interface will use,
+<2> the path to the input file. 
+
+The command above will read the input file, compile the patterns and start the web interface.
+--
+
+* In the browser navigate to appropriate address, e.g., http://localhost:3000
+
+=== Web tool video guide
+
+You can see a better quality version link:http://ki.wfi.uni.lodz.pl/media/PatternExplorer.mp4[here]
+
+++++
+<div style="text-align:center">
+    <video controls src="PatternExplorer4.mp4"
+    style="max-width: 100%"></video>
+</div>
+++++

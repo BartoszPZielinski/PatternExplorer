@@ -1,0 +1,244 @@
+=== Main application
+
+==== Dependencies between files
+
+image:dependencies.svg[width=100%]
+
+==== any_event.pl
+
+This module defines  functor `any_event/1` used in the implementation of
+pattern `any(X)`. The call `any_event(X)` always succeeds, but if `X` is a variable it ataches to it a constraint `any_event` which just serves as a marker. Variables thus marked are treated as single (unspecified) events in the narrowed event stream and not  subsequences of events.
+
+==== time_constr.pl
+
+This module defines functor `time_constr/2`. The call of the form `time_constr(X, T)` where `X` is an event variable  adds time attribute equal to `T` to `X` (and fails if `X` has already a time attribute distinct from `T`). This permits us to constrain time on events of unspecified type bound by `any(X)`. If `E` is an event and not a variable then `time_constr(E, T)` simply checks if timestamp of `E` is equal to `T`.
+
+==== event_types.pl
+
+The module event_types defines two important functors: `def_event_type/1` and `def_event_types/1` which accept as a single argument either, respectively, a single declaration of an event type or a list of such declarations. The functors assert associated definitions of `ref/3` and `event_type/2` functors (also exported by the module). The role of the generated functors is explained below. The module also defines functors event_time/2 (returning timestamp of an event), and `update_time/4` which is used by generated automaton and not by the user. Finally, the module also defines the functors `def_attr_domains/1` and `attr_dom/2` associated with describing domains of attributes of events which will be described below.
+
+Events are represented as Prolog terms of the form
+
+----
+⟨event type⟩(⟨attr_value₁⟩, ⟨attr_value₂⟩, …)
+----
+
+where `⟨event type⟩` plays the role of functor, and arguments are the event's attributes. Event schema is a list of terms of the form
+
+----
+⟨event_type⟩(⟨attr_name₁⟩, ⟨attr_name₂⟩, …)
+----
+
+with no two terms with the same functor. Declaration such as the one above means that events of type `⟨event_type⟩` have attributes with names `⟨attr_name₁⟩`, `⟨attr_name₂⟩`, …. Event
+
+----
+⟨event type⟩(⟨attr_value₁⟩, ⟨attr_value₂⟩, …)
+----
+
+has type `⟨event type⟩` and its argument of name `⟨attr_nameᵢ⟩` has value `⟨attr_nameᵢ⟩` for i∈{1, 2, …}.
+
+If `X` is an event with an attribute `a` then in our pattern language we refer to the value of this attribute as `ref(X, a)`. During compilation of patterns such terms are replaced by fresh variables (say `Y` for the sake of example) and additional goals of the form `ref(X, a, Y)` are added. The goal `ref(X, a, Y)` is satisfied when the attribute `a` of an event `X` has value `Y`.
+
+To check the type of an event one can use predicate `event_type/2`: The goal
+
+----
+event_type(⟨event⟩, ⟨type⟩)
+----
+
+is satisfied when `⟨event⟩` has type `⟨type⟩`.
+
+Finally, we describe functor `def_attr_domains/1` and `attr_dom/2`
+associated with describing domains of attributes of events. Functor 
+`def_attr_domains/1`  accepts as a single argument  a list of
+attribute domains declarations. Each declaration of domain of an attribute has the
+form 
+
+----
+attr_dom(attr₁, x₁..x₂)
+----
+
+where `attr₁` is an attribute name and `x₁` and `x₂` are 
+integers or symbols `inf` or `sup`. Thus, the above declares that 
+`attr₁` is between `x₁` and `x₂`.
+
+Execution of `def_attr_domains/1` defines dynamic functor `attr_dom/2`.
+The call `attr_dom(a, X)` applies the domain constraint associated to attribute `a`
+(by `def_attr_domains/1`) to the value (or variable) `X`. This functor rarerly needs to be called explicitly, as it is called implicitly when calling `ref/3`.
+
+==== skippable.pl
+
+This file contains definition of variable attribute skippable and associated hooks which permits constraint reasoning about types of events an unbound variable cannot be bound to. This module exports a single predicate `skippable/3` which works as follows:  Let `V` be a fresh variable and `Pairs` be a list of pairs of the form `⟨type, condition⟩`, where `condition` constrains `V`.  
+
+* If `Event` is a variable then
+`skippable(Event, V, Pairs)` adds to `Event` the constraint `skip(V, Pairs)` which declares that `Event` is either not of one of the types mentioned in `Pairs`, or it is of one of those types and it satisfies the associated condition.
+* if `Event` is not a variable than `skippable(Event, V, Pairs)` checks if the  the skippability encoded by `skip(V, Pairs)`.
+
+==== skip_pattern_syntax.pl
+
+Module skip_pattern_syntax exports, aside from binary operators `or`, `and`, and `then`  which are used in the patterns, also some predicates which check the properties of patterns related to variables and can convert patterns into satisfying *unique variable property*. The exported predicates are as follows:
+
+* `pattern_binds/2`: Given a pattern `P` a goal `pattern_binds(P, V)` binds `V` to the (ordered) list of all variables bound by `P`
+* `closed/2`: Given a pattern `P` a goal `closed(P, V)` is satisfied iff `P` is closed and `V` is the ordered list of variables bound by `P` (i.e., the same set as `pattern_binds/2` binds).
+* `is_unique_pattern/1`: The goal `is_unique_pattern(P)` is satisfied iff a pattern `P` has a *unique variable property*, i.e., no variables are shadowed or unnecessarily reused.
+* `make_pattern_unique/2`: Given a pattern `P0` the goal `make_pattern_unique(P0, P)` binds a pattern to a variable `P` which is  equivalent to P0, but has fresh variables and satisfies the *unique variable property*.
+
+Note that while predicates `pattern_binds/2`, `closed/2`, and `is_unique_pattern/1` do not make any assumptions about how the event variables are represented in the pattern passed as an argument (actual Prolog variables or any other terms, it does not matter), but `make_pattern_unique/2` requires for correct execution that the pattern passed as a first argument has event variables represented by actual Prolog variables (and the resulting pattern bound to the second argument represents event variables as Prolog variables as well). This is not checked in the goal, so it may lead to difficult to find errors.
+
+==== so_auto_cp.pl
+
+This module defines a runtime for an automaton recognizing patterns.
+Automatons  (or rather a family of automatons) are defined by the following 
+five dynamic predicates (asserted during compilation of patterns):
+
+itself, a user needs to provide definition for the following five predicates ( the first argument of the first predicate is an identifier which distinguishes between distinct, simultanously defined automatons):
+
+* `initial(Id, Input, I)` : `I` is an initial state for an automaton identified by `Id` (since we assume that from an initial state of one automaton it is impossible to reach state of another automaton, automaton identifier is absent from other automaton defining predicates). Note that initial state is always unique (for a given automaton) except for values of associated state data. `Input` is a term of the form `in(E₁, …, Eₐ)` (the actual functor may depend on the definition of the automaton). 
+Here E₁, …, Eₐ are events to be bound to variables in the initial state I.
+* `final(F, Output)` : F is a final state (there may be many final states with distinct functors). Output is a term of the form out(X₁,…,Xₐ) (the actual functor may depend on the definition of the automaton) where X₁,…,Xₐ are variables which get bound to the values of selected event variables associated with the final state F.
+* `trans(S0, E, Node, S1)` : automaton can move, after consuming an event `E` from state `S0` to state `S1`. `Node` is a special term describing where from in the original pattern this transition comes from. We will describe those terms later.
+* `eps(S0, S1)` : automaton can do an ϵ-move from `S1` to `S2`,
+* `skip(S, E)` : automaton can skip event `E` when in state `S`.
+
+To run the automaton use `match_list/5` which is the sole functor exported by module `so_auto_cp`. More precisely, the goal
+
+[source, prolog]
+----
+match_list(Id, L0, L, MTrees, Options)
+----
+
+is satisfied iff the automaton identified by `Id` (automatons created by pattern compiler have identifiers identical to identifier of the pattern they were compiled from) recognizes a list `L0` which it rewrites into `L` and 
+`MTrees` is a list of lists of positions. Each position in each of the lists in `MTrees` is either an atom `skip` or it indicates a  position in the pattern from which the automaton was compiled, and where the corresponding element of `L` was matched. `MTrees` contains a list of lists of positions instead of a single list of positions because we can chain the matchings (which can also generate solutions using generalized narrowing). The last element of `MTrees` corresponds to the present matching, the remaining ones are the results of modifications of lists of positions passed in `Options`, which, presumably, defined positions of matchings in previous passes of `match_list/5` which generated `L0`. Modifications are necessary because `L` can be longer than L0 (if `L0` was not ground) and all lists in `MTrees` must have equal length with `L`.
+
+`Options` is a list of options:
+
+* `input(Input)`: input events passed to initial state (default in)
+* `output(Output)`: output events taken from the output state (default out). Note that here one usually passes a variable which is then bound by `match_list/5` execution.
+* `max_depth(MaxLen)`: Only `MaxLen`  (default 20) of events will be consumed. This limits the depth of search.
+* `inmtrees(MTreesIn)`: a list of lists of positions coming from earlier chained matchings.
+
+To explain positions consider the following pattern:
+
+[source, prolog]
+----
+filter(
+    event(a, X)
+    then
+    iter(
+        filter(
+            event(b, Y) <1>
+            or
+            event(c, Y) 
+            ref(X, id) #= ref(Y, id)
+        )
+    ),
+    ref(X, time) #> 100
+)
+----
+<1> Since this `c`-event is matched inside iteration construct it can be matched multiple times. Associated positions will be of the form `pos([p(2), i(0), p(1)])`, `pos([p(2), i(1), p(1)])`, …. Here `p(2)` corresponds to the fact that the matching is done in the second argument of `then`, `i(0)`, `i(1)`, etc., counts the iteration (and also corresponds to iteration construct), next `p(1)` says that the event was matched in the first argument of `or`, etc. 
+
+Note that pattern constructors which have only single subpatterns (like `filter`) are not explicitly encoded in the position. Iterations have single subpattern, but they can be matched many times which is indicated by `i()`-terms. Web interface uses those positions to display the pattern with the part where the matching took place emphasized.
+
+The concept of chaining can be explained with the following example.
+Suppose that 1 and 2 are identifiers of compiled patterns and that 
+pattern 1 has output of the form `out(X)`, and pattern 2 has input `in(Y)`.
+Then the following call will generate bound `L` to symbolic lists of events 
+matching both pattern 1 and 2 with output event of 1 bound to input event of 2:
+
+[source, prolog]
+----
+:- match_list(1, <1>
+      _, <2>
+      L0, <3>
+      [MTree0], <4>
+      [output(out(X))] <5>
+   ),
+   match_list(2, <6>
+      L0, <7>
+      L,
+      MTrees, <8>
+      [
+        input(in(X)), <9>
+        inmtrees([MTree0]) <10>
+      ]
+   )
+----
+<1> We first match pattern 1,
+<2> We start with an unbound variable as a list to be matched, which means that we want to generate solutions
+<3> `L0` will be bound to a narrowed list matching pattern 1
+<4> `MTree0` represents information about where in Pattern 1 events in `L0` where matched
+<5> We output the output event
+<6> Now we match the second pattern
+<7> against the list of events narrowed to be solution of the first pattern
+<8> this will be bound to `[MTrees1, MTrees2]`, where `MTrees1` is updated `MTrees0` (with some skip's inserted) and `MTrees2` represents  information about where in Pattern 2 events in `L` where matched
+<9> here we bound input of pattern 2 to pattern 1 
+<10> and we also pass `MTrees0`. Note that this is a list since we can chain more than two patterns (even though the web interface does not support that yet) 
+
+==== compiler_state.pl
+
+The file contains definitions of internal predicates assisting in compilation proces. They are not to be used directly by the user.
+
+==== compiler_helpers.pl
+
+The file contains definitions of internal predicates assisting in compilation proces. They are not to be used directly by the user.
+
+==== skip_pattern_compiler.pl
+
+Module skip_pattern_compiler defines predicates which compile patterns into automatons (described link:#_so_auto_cp_pl[earlier]). The module exports a single predicate: `assert_regular/2`: Given an identifier `Id` (which can be any term) and a pattern `P` the goal `assert_regular(Id, P)` asserts (into `so_auto_cp` module) predicates `initial/3`, `final/2`, `trans/4`, `eps/2` and `skip/2` (see section <<_so_auto_cp_pl>>). 
+
+==== pattern.pl
+
+This module defines a number of helper functors which deal with high-level compilation of patterns and execution of examples:
+
+* `pattern/3` - a dynamic predicate defined by the call to `assert_file/1` in module <<_read_patterns_pl>> which stores information about patterns read from the input file. For each pattern a fact of the form 
++
+--
+----
+pattern(Id, Pattern, Vars)
+----
+
+is stored where `Id` is a pattern identifier, `Pattern` is a pattern as read by link:https://www.swi-prolog.org/pldoc/man?predicate=read_term/2[`read_term/2`] functor from the input file, and `Vars` are pairs of equalities VariableName=Var, as defined in the `variable_names` option of link:https://www.swi-prolog.org/pldoc/man?predicate=read_term/2[`read_term/2`] (those store original variable names, which is usefule when printing patterns).
+--
+        
+* `example/3` - a dynamic predicate defined by the call to `assert_file/1` in module <<_read_patterns_pl>> which stores information about patterns read from the input file. For each pattern a fact of the form 
++
+--
+----
+example(Id, Example, Vars)
+----
+
+is stored where `Id` is an example identifier, `Example` is an `ex`-term 
+(see <<_input_file_syntax>>) as read by link:https://www.swi-prolog.org/pldoc/man?predicate=read_term/2[`read_term/2`] functor from the input file, and `Vars` are pairs of equalities VariableName=Var, as defined in the `variable_names` option of link:https://www.swi-prolog.org/pldoc/man?predicate=read_term/2[`read_term/2`] (those store original variable names, which is usefule when printing examples).
+--
+* `get_patterns/1`: `get_patterns(P)` collects all asserted `pattern/3` facts in one list
+* `get_examples/1`: `get_examples(P)` collects all asserted `example/3` facts in one list
+* `compile_pattern/1`: `compile_pattern(Id)` compiles pattern with identifier `Id`,
+* `compile_patterns/0`: `compile_patterns` compiles all patterns
+* `run/3`: `run(ExId, MaxLen, L-MTrees)` generates a single (use backtracking to generate more) example `L` of list of events matching pattern(s) linked as described in the first argument. `MaxLen` is the maximal number of matched events and `MTrees` is a list of lists of positions describing where precisely in a given pattern an event from `L` matched.
+* `solutions/4` and `numbered_solutions/4` generate lists of all matchings (predicates are used by the web interface)
+
+==== patterns_clpfd.pl
+
+This module simply reimports modules link:#_skip_pattern_syntax_pl[skip_pattern_syntax] and link:https://www.swi-prolog.org/man/clpfd.html[clpfd].
+The only reason for the existence of this module is that 
+the predicate `read_term/2` (used in <<_read_patterns_pl>>) which parses Prolog terms from the input accepts only a single module parameter, and to parse definitions of patterns Prolog needs to recognize both pattern constructors such as `or` and `then` as well as integer constraints such as ``#>`` as binary operators.
+ 
+
+==== read_patterns.pl
+
+This module defines predicate `assert_file/1`. Execution of the goal
+`assert_file(File)` reads input file `File` and asserts the definitions from this file as dynamic predicates such as `pattern/3` and example/3 from 
+<<_pattern_pl>> and event type related predicates from <<_event_types_pl>>.
+This predicate, however, does not compile patterns.
+
+==== style.css
+
+This is a style file for the web interface.
+
+==== write_pattern.pl
+
+This file contains helper functions which create html to be displayed by the web interface.
+
+==== server.pl
+
+This file contains definitions of route handlers for the web interface as well as the predicate `server(Port, File)` which starts the web interface on port `Port` and reads input file `File`
+

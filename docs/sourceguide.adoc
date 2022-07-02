@@ -1,0 +1,9 @@
+== Api and source files guide
+
+Documentation sources are contained in `docs` subfolder.
+
+App sources and tests are contained in `PatternExplorer` subfolder.
+
+include::appsource.adoc[]
+
+include::testsource.adoc[]

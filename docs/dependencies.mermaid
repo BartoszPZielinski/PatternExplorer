@@ -1,0 +1,41 @@
+flowchart TD 
+    A1(any_event.pl)
+    A2(time_constr.pl)
+    A3(event_types.pl)
+    A4(skippable.pl)
+    A3 --> A4
+    A5(skip_pattern_syntax.pl)
+    A5 --> A3
+    A1 --> A3
+    A2 --> A3
+    A6(so_auto_cp.pl)
+    A4 --> A6
+    A3 --> A6
+    A7(compiler_state.pl)
+    A8(compiler_helpers.pl)
+    A7 --> A8
+    A9(skip_pattern_compiler.pl)
+    A3 --> A9
+    A4 --> A9
+    A5 --> A9
+    A7 --> A9
+    A8 --> A9
+    A10(pattern.pl)
+    A5 --> A10
+    A6 --> A10
+    A9 --> A10
+    A11(patterns_clpfd.pl)
+    A5 --> A11
+    A12(read_patterns.pl)
+    A3 --> A12
+    A11 --> A12
+    A13(style.css)
+    A14(write_pattern.pl)
+    A10 --> A14
+    A11 --> A14
+    A15(server.pl)
+    A13 --> A15
+    A10 --> A15
+    A14 --> A15
+    A12 --> A15
+    A11 --> A15
