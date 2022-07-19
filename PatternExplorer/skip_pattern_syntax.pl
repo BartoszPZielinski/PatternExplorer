@@ -294,7 +294,7 @@ pattern_unique(P1 and P2, U1 and U2)
         {
            assoc_to_keys(A1, B1),
            assoc_to_keys(A2, B2),
-           ord_subtract(B2, B1, B)
+           ord_subtract(B1, B2, B)
         },
         refill_and_(A1, B).
 pattern_unique(P1 or P2, U1 or U2)

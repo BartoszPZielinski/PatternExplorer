@@ -34,18 +34,6 @@ compile_query_pure(Id, Pattern, M0, Vs, Automaton)
        %format('Initial state ~w~n', [InitialState]),
        phrase(comp_aut(Pattern, Automaton), InitialState, [_]).
 
-/*
-comp_aut(empty, auto{
-        transitions: [],
-        epses: [],
-        skips: [],
-        initial: S,
-        final: [S]
-    })
-    --> current_vars(Vs),
-        fresh_state(S, Vs).
-*/
-
 comp_aut(
    start(V), auto{
         transitions: [],
@@ -133,7 +121,7 @@ comp_aut(P1 or P2, auto{
        },
        fresh_state(S0, Vs0).
 
-/*comp_aut(P1 and P2, auto{
+comp_aut(P1 and P2, auto{
    transitions: Trans,
    epses: [(eps(NewInit, I) :- true), (eps(F, NewFinal) :- true)|Es],
    skips: Skips,
@@ -153,17 +141,20 @@ comp_aut(P1 or P2, auto{
        localize_auto(Auto20, Auto2, I2, F2, Vs2),
        merge_states(F1, F2, F),
        merge_states(Auto1.initial, Auto2.initial, I),
-       skips_states(Auto1.skips, I1, States1),
-       skips_states(Auto2.skips, I2, States2),
+       {
+          skips_states(Auto1.skips, I1, States1),
+          skips_states(Auto2.skips, I2, States2)
+       },
        collect_lists(Auto1.epses, States2, merge_eps_(left), [], Es1),
-       collect_lists(Auto2.epses, States1, merge_eps_(right), Es1, Es),
+       collect_lists(Auto2.epses, States1, merge_eps_(right), Es1, Es2),
+       {reverse(Es2, Es)},
        collect_lists(Auto1.skips, Auto2.skips, merge_skips_(F1, F2), [], Skips),
        collect_lists(Auto1.transitions, Auto2.skips, 
                      merge_trans_skip_(left), [], Trans1),
        collect_lists(Auto2.transitions, Auto1.skips, 
                      merge_trans_skip_(right), Trans1, Trans2),
        collect_lists(Auto1.transitions, Auto2.transitions, 
-                        merge_trans_, Trans2, Trans).*/
+                        merge_trans_, Trans2, Trans).
 
 comp_aut(iter(P), auto{
    transitions: Trans,

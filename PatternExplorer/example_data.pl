@@ -198,6 +198,36 @@ pattern(102, select(inp(D, M, Lambda), out,
       )
 )).
 
+pattern(200, select(inp, out, event(driver_in, X) and event(sharp_turn, S))).
+
+pattern(201, select(inp, out, 
+   filter(event(stop_enter, X), ref(X, id) #= 1) then (
+      filter(
+         start(Y) then event(driver_in, D),
+         ref(D, id) #= ref(Y, id)   
+      ) and filter(event(sharp_turn, S), ref(S, id) #=2) 
+   )
+)).
+
+
+pattern(202, select(inp, out, 
+   (
+      filter(event(stop_enter, X), ref(X, id) #= 5)
+      and 
+      filter(event(stop_leave, Y), ref(Y, id) #=10)
+   ) then filter(
+      start(Z) then event(sharp_turn, T), 
+      ref(Z, id) #= ref(T, id)
+   )   
+)).
+
+pattern(203, select(inp, out, 
+   (iter(event(stop_enter, X)) and event(driver_in, Y)) then filter(
+      start(Z) then event(sharp_turn, T), 
+      ref(Z, id) #= ref(T, id)
+   )   
+)).
+
 example(1, ex(10, out(X, T)-inp(X, T), 11)).
 example(2, ex(0)).
 example(3, ex(1)).
@@ -216,3 +246,7 @@ example(31, ex(21)).
 example(32, ex(31, out-inp, 32)).
 example(100, ex(100, inp(lambda(3))-out(D, M)-inp(D, M, lambda(3)), 101)).
 example(101, ex(100, inp(lambda(3))-out(D, M)-inp(D, M, lambda(3)), 102)).
+example(200, ex(200)).
+example(201, ex(201)).
+example(202, ex(202)).
+example(203, ex(203)).

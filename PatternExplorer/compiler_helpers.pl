@@ -14,7 +14,15 @@
         mod_skip/5,
         count_state_push/3,
         append_iter/3,
-        append_iters//2
+        append_iters//2,
+        localize_auto//5,
+        merge_states//3,
+        skips_states/3,
+        collect_lists//5,
+        merge_eps_//5,
+        merge_skips_//6,
+        merge_trans_skip_//5,
+        merge_trans_//4
     ]).
 
 :- use_module(library(clpfd)).
@@ -157,3 +165,149 @@ mod_or_add_skip_rules(Type, C, [Type-C0 | L0], [Type-(C, C0) |L0]).
 mod_or_add_skip_rules(Type, C, [Type0-C0 | L0], [Type0-C0 | L])
 :- dif(Type, Type0),
    mod_or_add_skip_rules(Type, C, L0, L).
+
+/*
+    And helpers
+ */
+
+
+
+merge_states(S1, S2, S)
+--> stack_vars(IterVar, IterCount, LastMatched),
+    {
+      S1 =.. [Sid1|_],
+      S2 =.. [Sid2|_],
+      term_to_atom(a(Sid1, Sid2), Sid),
+      S =.. [Sid, IterVar, IterCount, LastMatched, S1, S2]
+    }.
+   
+reinit_state(S0, S)
+:- S0 =.. [Sid, _, _, LastMatched | Vs],
+   S =.. [Sid, [], [], LastMatched |Vs].
+
+skipped_state(skip(State, _, _), State).
+
+state_in(S0, [S1|_])
+   :- S0 =.. [F|_],
+      S1 =.. [F|_].
+state_in(S0, [S1|L])
+   :- S0 =.. [F1|_],
+      S1 =.. [F2|_],
+      dif(F1, F2),
+      state_in(S0, L).
+
+skips_states(Skips, I, States)
+   :- maplist(skipped_state, Skips, States0),
+      (state_in(I, States0) 
+         -> States=States0 
+          ; States = [I|States0]).
+
+localize_auto(Auto0, Auto, I, F, Vs)
+   --> stack_vars(IterVar, IterCount, _),
+       fresh_state(F, Vs),
+       fresh_vars([NewIter, NewCount, V]),
+       {
+         sources_target_acc_epses(Auto0.final, F, Auto0.epses, Epses),
+         Skips = [skip(F, V, [])|Auto0.skips],
+         Auto1 = Auto0.put([final=[F],
+                            epses=Epses,
+                            skips=Skips]),
+         renumber_var(IterVar, NewIter, Auto1, Auto2),
+         renumber_var(IterCount, NewCount, Auto2, Auto3),
+         I = Auto3.initial,
+         reinit_state(I, NewInitial),
+         Auto = Auto3.put([initial=NewInitial])
+    }. 
+
+collect_lists([], _, _, Out, Out) --> [].
+collect_lists([L0|Ls0], Ls1, F, Buf0, Out)
+   --> collect_list(Ls1, L0, F, Buf0, Buf1),
+       collect_lists(Ls0, Ls1, F, Buf1, Out).
+collect_list([], _, _, Out, Out) --> [].
+collect_list([L1|Ls1], L0, F, Buf0, Out)
+   --> call(F, L0, L1, Buf0, Buf1),
+       collect_list(Ls1, L0, F, Buf1, Out).
+
+%
+merge_eps_(Dir, (eps(S0, S1) :- G), S, Buf, [(eps(Sm0, Sm1) :- G)|Buf])
+--> merge_states(Dir, S0, S, Sm0),
+    merge_states(Dir, S1, S, Sm1).
+
+merge_states(left, S1, S2, S)
+--> merge_states(S1, S2, S).
+merge_states(right, S1, S2, S)
+--> merge_states(S2, S1, S).
+
+%
+merge_skips_(F1, F2, skip(S1, V1, L1), skip(S2, V2, L2),  Buf, Buf1)
+--> {S1=F1, S2=F2} -> {Buf1 = Buf} ; (
+      merge_states(S1, S2, S),
+      {
+         renumber_var(V1, V2, L1, L11),
+         merge_specs(L11, L2, L),
+         Buf1 = [skip(S, V2, L)|Buf]
+      }
+). 
+
+merge_specs([], Spec, Spec).
+merge_specs([Pair|Spec0], Spec1, Spec)
+:- merge_spec(Spec1, Pair, Spec2),
+   merge_specs(Spec0, Spec2, Spec).
+
+merge_spec([], Pair, [Pair]).
+merge_spec([Type-Cond0|Spec0], Type-Cond, [Type-(Cond0, Cond)|Spec0]) 
+:- !.
+merge_spec([Type0-Cond0|Spec0], Type-Cond, [Type0-Cond0|Spec])
+:- dif(Type0, Type),
+   merge_spec(Spec0, Type-Cond, Spec).
+
+%
+
+dir_p_(left, p(1)).
+dir_p_(right, p(2)).
+
+dir_pos_append_(Dir, pos(L), pos([P|L]))
+   :- dir_p_(Dir, P).
+
+merge_trans_skip_(
+   Dir,
+   (trans(V, Type, Pos0, S0, S1):-G), 
+   skip(S2, V1, L), 
+   Buf,
+   [(trans(V, Type, Pos, Sm0, Sm2):-C, G)|Buf]
+) --> merge_states(Dir, S0, S2, Sm0),
+      merge_states(Dir, S1, S2, Sm1),
+      {
+         type_spec_cond(Type, L, C0),
+         renumber_var(V1, V, C0, C),
+         dir_pos_append_(Dir, Pos0, Pos),
+         matched_state_push_rec(V, Sm1, Sm2)
+      }.
+
+type_spec_cond(_, [],  true).
+type_spec_cond(Type, [Type-C|_], C) :- !.
+type_spec_cond(Type, [Type1-_|L], C)
+   :- dif(Type, Type1),
+      type_spec_cond(Type, L, C).
+
+%
+merge_trans_(
+   (trans(V1, Type1, pos(L1), S10, S11) :- G1),
+   (trans(V2, Type2, pos(_), S20, S21) :- G2),
+   Buf, Buf1
+) --> {Type1 = Type2} -> (
+         merge_states(S10, S20, S0),
+         merge_states(S11, S21, S1),
+         {
+            matched_state_push_rec(V2, S1, S2),
+            Buf1 = [(trans(V2, Type2, pos([p(1)|L1]), S0, S2) :- V1=V2, G1, G2)|Buf]
+         }
+     ) ; {Buf1 = Buf}. 
+
+matched_state_push_rec(Event, S0, S)
+   :- S0 =.. [Sid, IterVar, IterCount, _ | Vs0],
+      read_term_from_atom(Sid, T, []),  
+      (T = s(_,_) -> Vs = Vs0 
+           ; maplist(matched_state_push_rec(Event), Vs0, Vs)),
+      S  =.. [Sid, IterVar, IterCount, Event | Vs].
+
