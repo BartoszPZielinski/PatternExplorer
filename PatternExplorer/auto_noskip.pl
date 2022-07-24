@@ -33,12 +33,12 @@ state_consume(S0, S1, Event)
             event_time(Event, T)
         }.
 
-eps_(S0, [], S1, [S1, S0])
-   :- eps(S0, S1),
+eps_(S0, [], P, S1, [S1, S0])
+   :- eps(S0, P,  S1),
       dif(S0, S1). 
 
-eps_(S0, [S0|Acc], S1, [S1, S0|Acc])
-   :- eps(S0, S1),
+eps_(S0, [S0|Acc], P, S1, [S1, S0|Acc])
+   :- eps(S0, P, S1),
       maplist(dif(S1), [S0|Acc]).
 
 match_list_ns(Id, L0, L, MTrees, Options)
@@ -48,12 +48,13 @@ match_list_ns(Id, L0, L, MTrees, Options)
       option(max_depth(MaxLen), Options, 20),
       initial(Id, Input, I),
       phrase(
-         matcher_ns(L0, L, MTreesIn-MTreesOut, MTree), 
+         matcher_ns(L0, L, MTreesIn-MTreesOut, MTree0), 
          [a(I, [], 0, 0, MaxLen)], 
          [a(S, _, T, _, _)]
       ),
       attr_dom(time, T),
       final(S, Output),
+      squash(MTree0, MTree)
       append(MTreesOut, [MTree], MTrees). 
 
 make_skips(L0, L, _) --> {var(L0), !, copy_term(L0, L)}.
@@ -96,9 +97,10 @@ matcher_ns(L0, L, MTrees, MTree)
          a(S1, Acc1, T, C, MaxLen)
        ),
        {
-          eps_(S0, Acc0, S1, Acc1)
+          eps_(S0, Acc0, P, S1, Acc1),
+          pos_tree_new_(P, MTree0, MTree)
        },
-       matcher_ns(L0, L, MTrees, MTree).
+       matcher_ns(L0, L, MTrees, MTree0).
 
 matcher_ns([A|L0], [A|L], MTrees, [skip|MTree])
    --> state_consume(S, S, A),

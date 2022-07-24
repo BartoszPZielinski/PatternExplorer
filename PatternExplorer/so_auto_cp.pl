@@ -4,7 +4,9 @@
       final/2, 
       trans/4, 
       eps/2, 
-      skip/2
+      skip/2,
+      squash/2,
+      pos_tree_new_/3
 ]).
 
 :- use_module(library(clpfd)).
@@ -54,7 +56,9 @@ iter_counter(S, C)
      final(F, Output) : final state F
      trans(S0, A, Node, S1) : automaton can do transition after consuming A from state
      S0 to S1
-     eps(S0, S1) : automaton can do ε - transition
+     eps(S0, P, S1) : automaton can do ε - transition. P is skip except when the 
+                      transition in question implements start(X): then it is a position 
+                      of start(X).
      skip(S, A) : automaton can skip A when in a state S.
  */
 
@@ -72,20 +76,12 @@ state_consume(S0, S1, A)
             event_time(A, T)
         }.
 
-/*source_targ(S0, S1)
-   :- S0 =.. [S0F | _],
-      S1 =..[S1F | _],
-      print('source: '), print(S0F), 
-      print('. target: '), print(S1F),nl.*/
-
-%eps_([], S0, S1, []) :- eps(S0, S1).
-
-eps_([], S0 , S1, [S1, S0])
-   :- eps(S0, S1),
+eps_([], S0 , P, S1, [S1, S0])
+   :- eps(S0, P, S1),
       dif(S0, S1). 
 
-eps_([S0|Acc], S0, S1, [S1, S0|Acc])
-   :- eps(S0, S1),
+eps_([S0|Acc], S0, P, S1, [S1, S0|Acc])
+   :- eps(S0, P, S1),
       maplist(dif(S1), [S0|Acc]).
 
 match_list(Id, L0, L, MTrees, Options)
@@ -95,13 +91,31 @@ match_list(Id, L0, L, MTrees, Options)
       option(max_depth(MaxLen), Options, 20),
       initial(Id, Input, I),
       phrase(
-         matcher(L0, L, MTreesIn-MTreesOut, MTree), 
+         matcher(L0, L, MTreesIn-MTreesOut, MTree0), 
          [a(I, [], 0, 0, MaxLen)], 
          [a(S, _, T, _, _)]
       ),
       attr_dom(time, T),
       final(S, Output),
+      squash(MTree0, MTree),
       append(MTreesOut, [MTree], MTrees). 
+
+squash(X, X) :- var(X), !.
+squash([], []).
+squash([skip|Ps0], [skip|Ps]) :- !, squash(Ps0, Ps).
+squash([start(_)|Ps0], Ps) :- !, squash(Ps0, Ps).
+squash([pos(L)|Ps0], [P|Ps]) :- squash_(Ps0, pos(L), P, Ps).
+squash_(X, P, P, X) :- var(X), !.
+squash_([], P, P,  []) :- !.
+squash_([skip|Ps0], P, P, Ps) :- !, squash([skip|Ps0], Ps).
+squash_([pos(L)|Ps0], P, P, Ps) :- !, squash([pos(L)|Ps0], Ps).
+squash_([start(L0)|Ps0], pos(L), P, Ps)
+   :- !, squash_([start(L0)|Ps0], pos(L,[]), P, Ps).
+squash_([start(L0)|Ps0], pos(L,Ls), P, Ps)
+   :- squash_(Ps0, pos(L, [pos(L0)|Ls]), P, Ps).
+
+pos_tree_new_(skip, MTree, MTree) :- !.
+pos_tree_new_(pos(L), MTree, [start(L)|MTree]).
 
 is_event_(A) :- nonvar(A), !.
 is_event_(A) :- get_attr(A, any_event, _).
@@ -133,8 +147,13 @@ matcher(L0, L, MTrees, MTree)
          a(S0, Acc0, T, C, MaxLen), 
          a(S1, Acc1, T, C, MaxLen)
        ),
-       {eps_(Acc0, S0, S1, Acc1)},
-       matcher(L0, L, MTrees, MTree).
+       {
+         eps_(Acc0, S0, P, S1, Acc1)
+       },
+       matcher(L0, L, MTrees, MTree0),
+       {
+         pos_tree_new_(P, MTree0, MTree)
+       }.
 
 advance(L0, L1, L2, L, MTrees0, MTrees, MTree0, MTree)
    --> {var(L0), !, L0 = [A | L1]},

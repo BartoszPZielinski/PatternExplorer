@@ -228,6 +228,18 @@ pattern(203, select(inp, out,
    )   
 )).
 
+pattern(204, select(inp, out, 
+   (event(stop_enter, X) then event(sharp_turn, T)) 
+   and 
+   filter(event(stop_enter, Y), ref(Y, id) #= 1)
+)).
+
+pattern(205, select(inp, out, 
+   event(stop_enter, X) 
+   and 
+   event(stop_enter, Y)
+)).
+
 example(1, ex(10, out(X, T)-inp(X, T), 11)).
 example(2, ex(0)).
 example(3, ex(1)).
@@ -250,3 +262,5 @@ example(200, ex(200)).
 example(201, ex(201)).
 example(202, ex(202)).
 example(203, ex(203)).
+example(204, ex(204)).
+example(205, ex(205)).

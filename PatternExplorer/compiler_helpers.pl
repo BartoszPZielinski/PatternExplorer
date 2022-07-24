@@ -17,22 +17,32 @@
         append_iters//2,
         localize_auto//5,
         merge_states//3,
-        skips_states/3,
+        skip_states/3,
         collect_lists//5,
         merge_eps_//5,
         merge_skips_//6,
         merge_trans_skip_//5,
-        merge_trans_//4
+        merge_trans_//4,
+        extract_trans_states_/3
     ]).
 
 :- use_module(library(clpfd)).
 :- use_module('compiler_state.pl').
 
-append_pos(H, (trans(V, Type, pos(L0), S0, S1) :- C), 
-             (trans(V, Type, pos(L), S0, S1) :- C))
-   :- append(H, L0, L).
-
 append_poss(H, Ts0, Ts) :- maplist(append_pos(H), Ts0, Ts).
+
+head_tail_pos_(_, skip, skip).
+head_tail_pos_(H, pos(L), pos([H|L])).
+
+append_pos(H, (trans(V, Type, P0, S0, S1) :- C), 
+             (trans(V, Type, P, S0, S1) :- C))
+   :- head_tail_pos_(H, P0, P).
+
+append_pos(H, (eps(S0, P0, S1) :- C), (eps(S0, P, S1) :- C))
+   :- head_tail_pos_(H, P0, P).
+
+pos_then_else_res_(skip, _, X, X).
+pos_then_else_res_(pos(_), X, _, X).
 
 append_iter(
    CounterVar,
@@ -40,6 +50,14 @@ append_iter(
    (trans(V, Type, pos([i(CounterVar)|L]), S0, S1) 
             :- so_auto_cp:iter_counter(S0, CounterVar), G)
 ).
+
+append_iter(CounterVar, 
+   (eps(S0, P0, S1) :- G),
+   (eps(S0, P, S1) :- Cond)
+) :- head_tail_pos_(i(CounterVar), P0, P), 
+     pos_then_else_res_(
+         P0, (so_auto_cp:iter_counter(S0, CounterVar), G), G, Cond
+     ). 
 
 append_iters(T0, T)
    --> fresh_var(CounterVar),
@@ -119,11 +137,11 @@ renumber_var('$VAR'(N0), '$VAR'(N), C0, C)
 
 sources_target_acc_epses([], _, L, L).
 sources_target_acc_epses([S|Ss], T, Acc, L)
-    :- sources_target_acc_epses(Ss, T, [(eps(S, T) :- true)|Acc], L).
+    :- sources_target_acc_epses(Ss, T, [(eps(S, skip, T) :- true)|Acc], L).
 
 sources_target_cond_acc_epses([], _, _, L, L).
 sources_target_cond_acc_epses([S|Ss], T, C, Acc, L)
-    :- sources_target_cond_acc_epses(Ss, T, C, [(eps(S, T) :- C)|Acc], L).
+    :- sources_target_cond_acc_epses(Ss, T, C, [(eps(S, skip, T) :- C)|Acc], L).
 
 /*
     Iteration helpers
@@ -153,12 +171,12 @@ finalize_goal(avg(_), X0, X, so_auto_cp:fin_avg(X0, X)).
 
 
 /*
-    Unless helpers
+    Noskip helpers
  */
 
 mod_skip(Type, V0, C0, skip(S, V, L0), skip(S,  V, L))
-:- renumber_var(V0, V, C0, C),
-   mod_or_add_skip_rules(Type, C, L0, L).
+   :- renumber_var(V0, V, C0, C),
+      mod_or_add_skip_rules(Type, C, L0, L).
 
 mod_or_add_skip_rules(Type, C, [], [Type-C]).
 mod_or_add_skip_rules(Type, C, [Type-C0 | L0], [Type-(C, C0) |L0]).
@@ -169,8 +187,6 @@ mod_or_add_skip_rules(Type, C, [Type0-C0 | L0], [Type0-C0 | L])
 /*
     And helpers
  */
-
-
 
 merge_states(S1, S2, S)
 --> stack_vars(IterVar, IterCount, LastMatched),
@@ -196,11 +212,14 @@ state_in(S0, [S1|L])
       dif(F1, F2),
       state_in(S0, L).
 
-skips_states(Skips, I, States)
-   :- maplist(skipped_state, Skips, States0),
-      (state_in(I, States0) 
+add_ifn_(S, States0, States)
+   :- state_in(S, States0) 
          -> States=States0 
-          ; States = [I|States0]).
+         ; States = [S|States0].
+
+skip_states(Skips, I, States)
+   :- maplist(skipped_state, Skips, States0),
+      add_ifn_(I, States0, States).
 
 localize_auto(Auto0, Auto, I, F, Vs)
    --> stack_vars(IterVar, IterCount, _),
@@ -229,14 +248,19 @@ collect_list([L1|Ls1], L0, F, Buf0, Out)
        collect_list(Ls1, L0, F, Buf1, Out).
 
 %
-merge_eps_(Dir, (eps(S0, S1) :- G), S, Buf, [(eps(Sm0, Sm1) :- G)|Buf])
+
+merge_eps_(Dir, (eps(S0, P0, S1) :- G), S, Buf, [(eps(Sm0, P, Sm1) :- G)|Buf])
 --> merge_states(Dir, S0, S, Sm0),
-    merge_states(Dir, S1, S, Sm1).
+    merge_states(Dir, S1, S, Sm1),
+    {
+      dir_p_(Dir, H),
+      head_tail_pos_(H, P0, P)
+    }.
 
 merge_states(left, S1, S2, S)
---> merge_states(S1, S2, S).
+   --> merge_states(S1, S2, S).
 merge_states(right, S1, S2, S)
---> merge_states(S2, S1, S).
+   --> merge_states(S2, S1, S).
 
 %
 merge_skips_(F1, F2, skip(S1, V1, L1), skip(S2, V2, L2),  Buf, Buf1)
@@ -266,9 +290,6 @@ merge_spec([Type0-Cond0|Spec0], Type-Cond, [Type0-Cond0|Spec])
 dir_p_(left, p(1)).
 dir_p_(right, p(2)).
 
-dir_pos_append_(Dir, pos(L), pos([P|L]))
-   :- dir_p_(Dir, P).
-
 merge_trans_skip_(
    Dir,
    (trans(V, Type, Pos0, S0, S1):-G), 
@@ -280,7 +301,8 @@ merge_trans_skip_(
       {
          type_spec_cond(Type, L, C0),
          renumber_var(V1, V, C0, C),
-         dir_pos_append_(Dir, Pos0, Pos),
+         dir_p_(Dir, H),
+         head_tail_pos_(H, Pos0, Pos),
          matched_state_push_rec(V, Sm1, Sm2)
       }.
 
@@ -290,19 +312,26 @@ type_spec_cond(Type, [Type1-_|L], C)
    :- dif(Type, Type1),
       type_spec_cond(Type, L, C).
 
-%
+combine_pos_(pos(L1), pos(L2), pos([c(L1, L2)])).
+
 merge_trans_(
-   (trans(V1, Type1, pos(L1), S10, S11) :- G1),
-   (trans(V2, Type2, pos(_), S20, S21) :- G2),
+   (trans(V1, Type1, P1, S10, S11) :- G1),
+   (trans(V2, Type2, P2, S20, S21) :- G2),
    Buf, Buf1
 ) --> {Type1 = Type2} -> (
          merge_states(S10, S20, S0),
          merge_states(S11, S21, S1),
          {
             matched_state_push_rec(V2, S1, S2),
-            Buf1 = [(trans(V2, Type2, pos([p(1)|L1]), S0, S2) :- V1=V2, G1, G2)|Buf]
+            combine_pos_(P1, P2, P),
+            Buf1 = [(trans(V2, Type2, P, S0, S2) :- V1=V2, G1, G2)-S21|Buf]
          }
      ) ; {Buf1 = Buf}. 
+
+extract_trans_states_([],Result, Result).
+extract_trans_states_([T-S|Pairs], Ts0-Ss0, Result)
+   :- add_ifn_(S, Ss0, Ss),
+      extract_trans_states_(Pairs, [T|Ts0]-Ss, Result).
 
 matched_state_push_rec(Event, S0, S)
    :- S0 =.. [Sid, IterVar, IterCount, _ | Vs0],

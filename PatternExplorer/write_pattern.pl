@@ -182,10 +182,25 @@ examples_html(ExamplesLis)
     :- get_examples(Examples),
        maplist(example_html, Examples, ExamplesLis).
 
-pid_path_short(Pid, Path, Short)
+path_mod_list_(X, X, []) :- var(X), !, fail.
+path_mod_list_(skip, skip, []) :- !.
+path_mod_list_(pos(L), pos(L), []) :- !.
+path_mod_list_(pos(L, L1), pos(L), L1).
+
+make_brs_([], []).
+make_brs_([A|As0], [br([]),A|As]) :- make_brs_(As0, As).
+
+term_vars_atom_(Vars, Short0, Short)
+    :- term_vars_atom(Short0, Vars, Short).
+
+pid_path_short(Pid, Path0, [Short|Shorts2])
     :- pattern(Pid, select(_, _, Pattern), Vars),
+       path_mod_list_(Path0, Path, L),
        pattern_path_short(Pattern, Path, Short0),
-       term_vars_atom(Short0, Vars, Short).
+       maplist(pattern_path_short(Pattern), L, Shorts0),
+       term_vars_atom(Short0, Vars, Short),
+       maplist(term_vars_atom_(Vars), Shorts0, Shorts1),
+       make_brs_(Shorts1, Shorts2). 
 
 pattern_path_short(_, skip, skip).
 pattern_path_short(event(T, X), pos([]), event(T, X)).
@@ -203,6 +218,9 @@ pattern_path_short(P1 and _, pos([p(1) | L]), P1Short and '...')
     :- pattern_path_short(P1, pos(L), P1Short).
 pattern_path_short(_ and P2, pos([p(2) | L]), '...' and P2Short)
     :- pattern_path_short(P2, pos(L), P2Short).
+pattern_path_short(P1 and P2, pos([c(L1, L2)]), P1Short and P2Short)
+    :- pattern_path_short(P1, pos(L1), P1Short),
+       pattern_path_short(P2, pos(L2), P2Short).
 pattern_path_short(filter(P, _), pos(L), filter(PShort, '...'))
     :- pattern_path_short(P, pos(L), PShort).
 pattern_path_short(noskip(P, _, _), pos(L), noskip(PShort, '...', '...'))
@@ -211,7 +229,6 @@ pattern_path_short(iter(P), pos([i(N) | L]), iter(PShort) * i(N))
     :- pattern_path_short(P, pos(L), PShort).
 pattern_path_short(iter(P, _, X), pos([i(N) | L]), iter(PShort, '...', X) * i(N))
     :- pattern_path_short(P, pos(L), PShort).
-
 
 html_solutions(ExId, MaxDepth, NSols, SolutionLis)
     :- numbered_solutions(ExId, MaxDepth, NSols, Sols),
@@ -244,7 +261,7 @@ stream_table(ex(Pid1, _, Pid2), L, [MTree1, MTree2], div(table([
         th(['Pattern ', Pid2])
     ])]),
     tbody(TableLines)    
-]))) :- maplist(stream_line2(Pid1-Pid2), MTree1, L, MTree2, TableLines).
+]))) :- maplist(stream_line2(Pid1-Pid2), MTree1, L, MTree2, TableLines), !.
 
 stream_table(ex(Pid), L, [MTree], div(table([
     thead([tr([
@@ -252,7 +269,7 @@ stream_table(ex(Pid), L, [MTree], div(table([
         th(['Events'])
     ])]),
     tbody(TableLines)    
-]))) :- maplist(stream_line1(Pid), MTree, L, TableLines).
+]))) :- maplist(stream_line1(Pid), MTree, L, TableLines), !.
 
 stream_table(ex(Pid, _), L, [MTree], div(table([
     thead([tr([
@@ -260,7 +277,7 @@ stream_table(ex(Pid, _), L, [MTree], div(table([
         th(['Events'])
     ])]),
     tbody(TableLines)    
-]))) :- maplist(stream_line1(Pid), MTree, L, TableLines).
+]))) :- maplist(stream_line1(Pid), MTree, L, TableLines), !.
 
 stream_line2(Pid1-Pid2, Node1, Event, Node2, tr([
     td(Short1), td(EventAtom), td(Short2)
