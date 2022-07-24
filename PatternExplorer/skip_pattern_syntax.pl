@@ -17,8 +17,16 @@
     Syntax: pattern ::= any(X) | start(X) | event(typ, variable) | iter(pattern) |
     filter(pattern, condition)
     | noskip(pattern, event(type, variable), condition) |
+    | noskip(pattern, noskip)|
     pattern₁ or pattern₂ | pattern₁ and pattern₂ | pattern₁ then pattern₂
 */
+
+noskip_pattern_(P1 or P2)
+    :- noskip_pattern_(P1),
+       noskip_pattern_(P2).
+noskip_pattern_(filter(P, _))
+    :- noskip_pattern_(P).
+noskip_pattern_(event(_,_)).
 
 pattern_binds(event(_,X), [X]).
 pattern_binds(start(X), [X]).
@@ -41,7 +49,8 @@ pattern_binds(filter(Q, _), V)
      :- pattern_binds(Q, V).
 pattern_binds(noskip(Q, _, _), V)
      :- pattern_binds(Q, V).
-
+pattern_binds(noskip(Q, _), V)
+     :- pattern_binds(Q, V).
 
 
 closed(Pattern, Binding)
@@ -83,6 +92,12 @@ closed_(noskip(P, event(_, X), C))
        el_old_new(X, B0, _),
        closed_filter_(C),
        old_new_col(_, B1).
+closed_(noskip(P, N))
+    --> cur_col(B0),
+        {noskip_pattern_(N)},
+        closed_(N),
+        old_new_col(_, B0),
+        closed_(P).
 closed_(P1 then P2)
    --> closed_(P1),
        closed_(P2).
@@ -149,6 +164,10 @@ is_unique_pattern_(filter(P, _))
 is_unique_pattern_(noskip(P, E, _))
     --> is_unique_pattern_(P),
         is_unique_pattern_(E).
+is_unique_pattern_(noskip(P, N))
+--> is_unique_pattern_(P),
+    {noskip_pattern_(N)},
+    is_unique_pattern_(N).
 is_unique_pattern_(P1 then P2)
     --> is_unique_pattern_(P1),
         is_unique_pattern_(P2).
@@ -282,6 +301,12 @@ pattern_unique(noskip(P0, E0, C0), noskip(P, E, C))
         renaming(A),
         {term_vars_renamed(A, C0, C)},
         set_renaming(_, A0).
+pattern_unique(noskip(P0, N0), noskip(P, N))
+--> {noskip_pattern_(N0)},
+    renaming(A0),
+    pattern_unique(N0, N),
+    set_renaming(_, A0),
+    pattern_unique(P0, P).
 pattern_unique(P1 then P2, U1 then U2)
     --> pattern_unique(P1, U1),
         pattern_unique(P2, U2).

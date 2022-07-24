@@ -241,13 +241,35 @@ comp_aut(filter(P, Cond), Auto)
 
 
 comp_aut(noskip(P, event(Type, V), Cond), Auto1)
-   -->
-       comp_aut(P, Auto),
+   --> comp_aut(P, Auto),
        cond_trans(#\ Cond, C),
        {
           maplist(mod_skip(Type, V, C), Auto.skips, Skips),
           Auto1 = Auto.put([skips=Skips])
        }. 
+
+comp_aut(noskip(P, N), Auto1)
+   --> comp_aut(P, Auto),
+       {pat_nskip_(N, NS)},
+       modify_skips_rec_(NS, Auto.skips, Skips),
+       {Auto1 = Auto.put([skips=Skips])}.
+
+modify_skips_rec_([], Skips, Skips) --> [].
+modify_skips_rec_([nskip(V, Type, Cond)|NS], Skips0, Skips)
+   --> cond_trans(#\ Cond, C),
+       {maplist(mod_skip(Type, V, C), Skips0, Skips1)},
+       modify_skips_rec_(NS, Skips1, Skips).
+
+pat_nskip_(P1 or P2, NS)
+   :- pat_nskip_(P1, NS1),
+      pat_nskip_(P2, NS2),
+      append(NS1, NS2, NS).
+pat_nskip_(filter(P, C), NS)
+   :- pat_nskip_(P, NS0),
+      maplist(add_ns_cond_(C), NS0, NS).
+pat_nskip_(event(Type, X), [nskip(X, Type, 1 #= 1)]).
+
+add_ns_cond_(C1, nskip(X, Type, C2), nskip(X, Type, C1 #/\ C2)).
 
 /*
    Asserting compiled automaton.

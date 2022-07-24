@@ -64,6 +64,13 @@ pattern_lines_(noskip(P, Event, Cond), Vars, N)
      term_vars_atom(Cond, Vars, Atom1)},
     [', ', Atom0, ', ', Atom1, ')~n'-[]].
 
+pattern_lines_(noskip(P, NP), Vars, N)
+--> start_spaces(N), ['noskip(~n'-[]], 
+    {N1 #= N + 1}, pattern_lines_(P, Vars, N1),
+    start_spaces(N), 
+    {term_vars_atom(NP, Vars, Atom0)},
+    [', ', Atom0, ')~n'-[]].
+
 pattern_lines_(filter(P, Cond), Vars, N)
 --> start_spaces(N), ['filter(~n'-[]], 
     {N1 #= N + 1}, pattern_lines_(P, Vars, N1),
@@ -224,6 +231,8 @@ pattern_path_short(P1 and P2, pos([c(L1, L2)]), P1Short and P2Short)
 pattern_path_short(filter(P, _), pos(L), filter(PShort, '...'))
     :- pattern_path_short(P, pos(L), PShort).
 pattern_path_short(noskip(P, _, _), pos(L), noskip(PShort, '...', '...'))
+    :- pattern_path_short(P, pos(L), PShort).
+pattern_path_short(noskip(P, _), pos(L), noskip(PShort, '...'))
     :- pattern_path_short(P, pos(L), PShort).
 pattern_path_short(iter(P), pos([i(N) | L]), iter(PShort) * i(N))
     :- pattern_path_short(P, pos(L), PShort).

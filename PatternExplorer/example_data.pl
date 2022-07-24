@@ -240,6 +240,15 @@ pattern(205, select(inp, out,
    event(stop_enter, Y)
 )).
 
+pattern(300, select(inp, out,
+   noskip(event(stop_enter, X), 
+      filter(
+         event(stop_leave, Y) or event(sharp_turn, Y),
+         ref(Y, id) #= 1
+      )
+   )
+)).
+
 example(1, ex(10, out(X, T)-inp(X, T), 11)).
 example(2, ex(0)).
 example(3, ex(1)).
@@ -264,3 +273,4 @@ example(202, ex(202)).
 example(203, ex(203)).
 example(204, ex(204)).
 example(205, ex(205)).
+example(300, ex(300)).

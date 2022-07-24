@@ -184,6 +184,7 @@ mod_or_add_skip_rules(Type, C, [Type0-C0 | L0], [Type0-C0 | L])
 :- dif(Type, Type0),
    mod_or_add_skip_rules(Type, C, L0, L).
 
+
 /*
     And helpers
  */
