@@ -43,13 +43,6 @@ update_avg(a(Sum0, Count0), E, a(Sum, Count))
 fin_avg(a(Sum, Count), Avg) :- Avg #= Sum // Count.
 
 /*
-   Some other runtime helpers
- */
-
-iter_counter(S, C)
-   :- S =.. [_, _, [C|_] | _].
-
-/*
      This module describes automaton recognizing patterns on lists with output.
      The automaton is defined by the following predicates:
      initial(Id, I, Input) : initial state I for automaton Id
