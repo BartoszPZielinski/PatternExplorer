@@ -240,6 +240,12 @@ pattern(205, select(inp, out,
    event(stop_enter, Y)
 )).
 
+pattern(206, select(inp, out, 
+   iter(event(stop_enter, X))
+   and 
+   iter(event(stop_leave, Y))
+)).
+
 pattern(300, select(inp, out,
    noskip(event(stop_enter, X), 
       filter(
@@ -273,4 +279,5 @@ example(202, ex(202)).
 example(203, ex(203)).
 example(204, ex(204)).
 example(205, ex(205)).
+example(206, ex(206)).
 example(300, ex(300)).
