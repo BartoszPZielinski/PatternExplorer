@@ -25,7 +25,9 @@
         counter_epses/4,
         empty_auto/3,
         appends_bin_/5,
-        localize_auto//4
+        localize_auto//4,
+        get_event_spec//4,
+        mod_time_trans/4
     ]).
 
 :- use_module(library(clpfd)).
@@ -39,7 +41,8 @@ empty_auto(Initial, Final, auto{
    epses: [],
    initial: Initial,
    skips: [],
-   final: Final
+   final: Final,
+   aggrs: []
 }).
 
 %%%%% Some compilation helpers
@@ -129,6 +132,19 @@ epsrev(S1, S0, Eps)
     Iteration helpers
  */
 
+get_event_spec(CVar-TVar, List, Event, Aggr)
+-->  {maplist([Attr = Fun, Attr, Fun] >> true, List, Attrs, Funs)}, 
+     fresh_event(Event, [time, count | Attrs]),
+     {Event =.. [Eid|_],
+      Aggr =.. [Eid, time(TVar), count0(CVar)|Funs]}.
+
+mod_time_trans(
+   LastTime, TVar,
+   (trans(V, Type, P, Sub0, S0, S1) :- C),
+   (trans(V, Type, P, Sub, S0, S1) :- C)
+) :- get_assoc(LastTime, Sub0, LT),
+     put_assoc(TVar, Sub0, LT, Sub).
+
 iteratize_auto(NewVars, Auto0, Auto)
    :- add_vars_to_auto(NewVars, Auto0, Auto1),
       NewVars = [CounterVar|_],
@@ -137,7 +153,7 @@ iteratize_auto(NewVars, Auto0, Auto)
       Auto = Auto1.put([epses=Epses, trans = Trans]).
 
 counter_epses(Auto, IterInit-IterFinal, CVar-CVar1, [Ei, Eu, Ef])
-   :- list_to_assoc([CVar-0], Sub),
+   :- list_to_assoc([CVar-1], Sub),
       list_to_assoc([CVar-CVar1], Sub1),
       epsrev(Sub, Auto.initial, IterInit, Ei),
       maplist(epsrev(CVar1 #= CVar + 1, Sub1, Auto.initial), Auto.final, Eu),
@@ -180,12 +196,16 @@ init_expr(min(_), nothing).
 init_expr(max(_), nothing).
 init_expr(count(*), 1).
 init_expr(avg(_), a(0,0)).
+init_expr(count0(_), _).
+init_expr(time(_), 0).
 
 update_goal(sum(E), X0, X, X #= X0 + E).
 update_goal(min(E), X0, X, so_auto_cp:ext_min(X0, E, X)).
 update_goal(max(E), X0, X, so_auto_cp:ext_max(X0, E, X)).
 update_goal(count(*), X0, X, X #= X0 + 1).
 update_goal(avg(E), X0, X, so_auto_cp:update_avg(X0, E, X)).
+update_goal(count0(_), _, _, true).
+update_goal(time(_), _, _, true).
 
 finalize_goal(min(_), X0, X, X #= X0).
 finalize_goal(min(_), X0, X, so_auto_cp:fin_minmax(X0, X)).
@@ -193,6 +213,8 @@ finalize_goal(max(_), X0, X, so_auto_cp:fin_minmax(X0, X)).
 finalize_goal(min(_), X0, X, so_auto_cp:fin_minmax(X0, X)).
 finalize_goal(count(*), X0, X, X #= X0).
 finalize_goal(avg(_), X0, X, so_auto_cp:fin_avg(X0, X)).
+finalize_goal(count0(CounterVar), _, X, X #= CounterVar).
+finalize_goal(time(TVar), _, X, X #= TVar).
 
 /*
     Noskip helpers

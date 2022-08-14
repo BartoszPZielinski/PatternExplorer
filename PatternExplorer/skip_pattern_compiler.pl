@@ -60,13 +60,14 @@ comp_aut(start(V), Auto)
 comp_aut(any(V), Auto) --> comp_aut(event(any, V), Auto).
 
 comp_aut(event(Type, V), Auto) 
-   --> fresh_var(V1),
+   --> fresh_vars([V1, Time]),
        add_var(Vs0, V, Vs),
-       last_matched(LastMatched),
+       specials(LastMatched, LastTime),
        fresh_states([S0, S1], [Vs0, Vs]),
        {
-            list_to_assoc([LastMatched-V], Subst),
-            T = (trans(V, Type, pos([]), Subst, S0, S1) :- true),
+            list_to_assoc([LastMatched-V, LastTime-Time], Subst),
+            T = (trans(V, Type, pos([]), Subst, S0, S1) 
+                     :- event_time(V, Time)),
             empty_auto(S0, [S1], Auto0),
             Auto = Auto0.put([trans=[T], skips=[skip(S0, V1, [])]])
        }.
@@ -151,7 +152,32 @@ comp_aut(iter(P, Event, V), Auto)
        append([Ef, Eu, [Ei], Auto1.epses], Epses),
        Auto = Auto1.put([epses=Epses, initial=IterInit, final=[IterFinal]])
     },
-    replace_vars(_, Vs).      
+    replace_vars(_, Vs).  
+
+comp_aut(aggr(P, List, V), Auto)
+   --> current_vars(Vs0),
+       comp_aut(P, Auto0),
+       {ord_add_element(Vs0, V, Vs)},
+       fresh_states([IterInit, IterFinal], [Vs0, Vs]),
+       fresh_vars([CVar, TVar, Aggr, CVar1]),
+       get_event_spec(CVar-TVar, List, Event, EAggr),
+       event_fresh(EAggr, EFresh0),
+       event_fresh(EAggr, EFresh),
+       term_trans_goals(EAggr, EventT, GList0),
+       specials(_, LastTime),
+       {
+          iteratize_auto([CVar, Aggr, TVar], Auto0, Auto1),
+          counter_epses(Auto1, IterInit-IterFinal, CVar-CVar1, [Ei0, Eu0, Ef0]),
+          maplist(mod_time_trans(LastTime, TVar), Auto1.trans, Trans),
+          mod_init_eps(Aggr, EventT, Ei0, Ei),
+          maplist(mod_upd_eps(Aggr, EventT-GList0, EFresh0-EFresh), Eu0, Eu),
+          maplist(mod_fin_eps(Aggr-V, EventT-GList0, EFresh0-EFresh), Ef0, Ef),
+          append([Ef, Eu, [Ei], Auto1.epses], Epses),
+          Auto = Auto1.put([epses=Epses, initial=IterInit, trans=Trans,
+                            final=[IterFinal], aggrs=[Event|Auto1.aggrs]])
+       },
+       replace_vars(_, Vs).      
+       
 
 comp_aut(filter(P, Cond), Auto)
    --> comp_aut(P, Auto0),
@@ -221,13 +247,14 @@ assert_regular(Id, Select0)
             [skip(S, V, L)]>>assertz(so_auto_cp:skip(S, X) :- skippable(X, V, L)),
             Auto.skips
         ),
+        def_event_types(Auto.aggrs),
         Auto.initial =.. [Sid|_],
         assertz((
            so_auto_cp:initial(Id, Input, Init) 
                :- Input =.. [_|Args],
                   length(Args, N),
                   N #= NVs,
-                  Init =.. [Sid, start(0)|Args]
+                  Init =.. [Sid, start(0), 0|Args]
         )),
         maplist({Out}/[S]>>assertz(so_auto_cp:final(S, Out)), Auto.final),
         !.

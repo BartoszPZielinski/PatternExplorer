@@ -33,6 +33,7 @@ pattern_binds(start(X), [X]).
 pattern_binds(any(X), [X]).
 pattern_binds(iter(_), []).
 pattern_binds(iter(_, _, X), [X]).
+pattern_binds(aggr(_, _, X), [X]).
 pattern_binds(Q1 or Q2, V)
     :- pattern_binds(Q1, V1),
        pattern_binds(Q2, V2),
@@ -82,6 +83,12 @@ closed_(iter(P, Event, X))
         closed_filter_(Event),
         old_new_col(_, B0),
         el_old_new(X, _, _).
+closed_(aggr(P, List, X))
+--> cur_col(B0),
+    closed_(P),
+    closed_filter_list_(List),
+    old_new_col(_, B0),
+    el_old_new(X, _, _).
 closed_(filter(P, C))
    --> closed_(P),
        closed_filter_(C).
@@ -159,6 +166,9 @@ is_unique_pattern_(iter(P))
 is_unique_pattern_(iter(P, _, X))
     --> is_unique_pattern_(P),
         is_fresh(X).
+is_unique_pattern_(aggr(P, _, X))
+--> is_unique_pattern_(P),
+    is_fresh(X).
 is_unique_pattern_(filter(P, _))
     --> is_unique_pattern_(P).
 is_unique_pattern_(noskip(P, E, _))
@@ -290,6 +300,13 @@ pattern_unique(iter(P0, Event0, '$VAR'(N)), iter(P, Event, '$VAR'(M)))
         {term_vars_renamed(A1, Event0, Event)},
         fresh(M),
         rename_old_to_new(N, M).
+pattern_unique(aggr(P0, List0, '$VAR'(N)), aggr(P, List, '$VAR'(M)))
+--> renaming(A),
+    pattern_unique(P0, P),
+    set_renaming(A1, A),
+    {maplist(term_vars_renamed(A1), List0, List)},
+    fresh(M),
+    rename_old_to_new(N, M).
 pattern_unique(filter(P0, C0), filter(P, C))
     --> pattern_unique(P0, P),
         renaming(A),

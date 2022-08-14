@@ -66,7 +66,8 @@ state_consume(S0, S1, A)
             C0 < MaxLen,
             C1 is C0 + 1,
             T0 #< T,
-            event_time(A, T)
+            S1 =..[_, _, T|_]
+            %event_time(A, T)
         }.
 
 eps_([], S0 , P, S1, [S1, S0])

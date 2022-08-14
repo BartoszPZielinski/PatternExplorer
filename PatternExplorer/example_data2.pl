@@ -25,7 +25,7 @@ def_event_types([
     /* The bus id reports location location_id at time time.*/
     location(id, location_id, time),
     /* Events used for aggregation only */
-    agg(cnt),
+    %agg(cnt),
     /* Parameter event */
     lambda(par)
 ]).
@@ -78,8 +78,8 @@ pattern(7, select(in, out,
 )).
 
 pattern(8, select(in, out, 
-   filter(iter(event(driver_in, X), agg(count(*)), Y), 
-   ref(Y, cnt) #=3
+   filter(aggr(event(driver_in, X), [], Y), 
+   ref(Y, count) #=3
 )
 )).
 
@@ -101,16 +101,16 @@ filter(event(stop_enter, Se), ref(Se, delta_schedule) #>= 120) then noskip(
    ref(Di, id) #= ref(Se, id)
 ) then noskip(
       filter(
-         iter(
+         aggr(
             filter(
                event(abrupt_accel, E) or 
                event(abrupt_decel, E) or 
                event(sharp_turn, E),
                ref(E, id) #= ref(Se, id) 
             ),
-            agg(count(*)), 
+            [], 
             I
-         ), ref(I, cnt) #>= 3
+         ), ref(I, count) #>= 3
       ) then filter(
             event(stop_enter, K), ref(K, id) #= ref(Se, id)
       ),
@@ -157,29 +157,29 @@ pattern(32, select(inp, out,
 pattern(100, select(inp(Lambda), out(D, M),
     event(driver_in, D) then
     filter(
-      iter(
+      aggr(
          noskip(
              filter(
                 event(abrupt_decel, AD),
                 ref(AD, id) #= ref(D, id)
              ), event(driver_out, D2), ref(D2, drv_id) #= ref(D, drv_id)
-         ), agg(count(*)), C
+         ), [], C
       ),
-      ref(C, cnt) #= ref(Lambda, par)  
+      ref(C, count) #= ref(Lambda, par)  
     ) then start(M)
 )).
 
 pattern(101, select(inp(D, M, Lambda), out, 
      filter(
-         iter(
+         aggr(
             filter(
                event(sharp_turn, S),
                ref(S, id) #= ref(D, id) #/\
                ref(S, time) #> ref(D, time) #/\ 
                ref(S, time) #< ref(M, time)
-            ), agg(count(*)), H 
+            ), [], H 
          ),
-         ref(H, cnt) #= ref(Lambda, par) 
+         ref(H, count) #= ref(Lambda, par) 
       )
 )).
 
@@ -187,14 +187,14 @@ pattern(102, select(inp(D, M, Lambda), out,
      filter(event(driver_in, D1), 
           ref(D1, time) #= ref(D, time)) then 
      filter(
-         iter(
+         aggr(
             filter(
                event(sharp_turn, S),
                ref(S, id) #= ref(D, id) #/\
                ref(S, time) #< ref(M, time)
-            ), agg(count(*)), H 
+            ), [], H 
          ),
-         ref(H, cnt) #= ref(Lambda, par) 
+         ref(H, count) #= ref(Lambda, par) 
       )
 )).
 

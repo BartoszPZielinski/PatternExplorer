@@ -10,6 +10,7 @@
    ]).
 
 :- use_module(library(varnumbers)).
+:- use_module(library(ordsets)).
 %:- use_module(library(clpfd)).
 :- use_module('patterns_clpfd.pl').
 :- use_module('time_constr.pl').
@@ -56,6 +57,10 @@ assert_ref_args([Arg|Args], Event0, N0)
 
 def_event_type(ET)
      :- ET =.. [Type|Args],
+        list_to_ord_set(Args, ArgsL),
+        length(Args, N1),
+        length(ArgsL, N2),
+        N1 #= N2,
         args_vars_next(Args, Vars, 0),
         Event0 =.. [Type|Vars],
         varnumbers(Event0, Event),
