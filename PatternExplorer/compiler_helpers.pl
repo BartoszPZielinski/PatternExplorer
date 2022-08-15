@@ -18,16 +18,13 @@
         merge_trans_/3,
         add_vars_to_auto/3,
         subst_auto/2,
-        iteratize_auto/3,
-        mod_init_eps/4,
-        mod_upd_eps/5,
-        mod_fin_eps/5,
-        counter_epses/4,
         empty_auto/3,
         appends_bin_/5,
         localize_auto//4,
-        get_event_spec//4,
-        mod_time_trans/4
+        mod_time_trans/3,
+        get_time_var/2,
+        get_count_var//3,
+        iter_eps/5
     ]).
 
 :- use_module(library(clpfd)).
@@ -41,8 +38,7 @@ empty_auto(Initial, Final, auto{
    epses: [],
    initial: Initial,
    skips: [],
-   final: Final,
-   aggrs: []
+   final: Final
 }).
 
 %%%%% Some compilation helpers
@@ -121,100 +117,62 @@ append_iter(CounterVar,
     Adding epses
  */
 
-epsrev(P, C, Sub, S1, S0, (eps(S0, P, Sub, S1) :- C)).
-epsrev(C, Sub, S1, S0, Eps) :- epsrev(skip, C, Sub, S1, S0, Eps).
-epsrev(Sub, S1, S0, Eps) :- epsrev(skip, true, Sub, S1, S0, Eps).
-epsrev(S1, S0, Eps)
-   :- list_to_assoc([], Empty), 
-      epsrev(skip, true, Empty, S1, S0, Eps).
+epsrev(P, C, Pairs, S1, S0, (eps(S0, P, Sub, S1) :- C))
+   :- list_to_assoc(Pairs, Sub).
+epsrev(C, Pairs, S1, S0, Eps) :- epsrev(skip, C, Pairs, S1, S0, Eps).
+epsrev(Pairs, S1, S0, Eps) :- epsrev(skip, true, Pairs, S1, S0, Eps).
+epsrev(S1, S0, Eps) :- epsrev(skip, true, [], S1, S0, Eps).
 
 /*
     Iteration helpers
  */
 
-get_event_spec(CVar-TVar, List, Event, Aggr)
--->  {maplist([Attr = Fun, Attr, Fun] >> true, List, Attrs, Funs)}, 
-     fresh_event(Event, [time, count | Attrs]),
-     {Event =.. [Eid|_],
-      Aggr =.. [Eid, time(TVar), count0(CVar)|Funs]}.
+get_time_var([], none).
+get_time_var([A = time | _], time(A)).
+get_time_var([_ = F | Ls], T)
+   :- dif(F, time), get_time_var(Ls, T).
 
-mod_time_trans(
-   LastTime, TVar,
-   (trans(V, Type, P, Sub0, S0, S1) :- C),
-   (trans(V, Type, P, Sub, S0, S1) :- C)
-) :- get_assoc(LastTime, Sub0, LT),
-     put_assoc(TVar, Sub0, LT, Sub).
+get_count_var([], CVar, [CVar=count]) --> fresh_var(CVar).
+get_count_var([A = count|L], A, [A = count|L]) --> [].
+get_count_var([A = F|Ls0], CVar, [A = F|Ls]) 
+   --> {dif(F, count)}, get_count_var(Ls0, CVar, Ls).
 
-iteratize_auto(NewVars, Auto0, Auto)
-   :- add_vars_to_auto(NewVars, Auto0, Auto1),
-      NewVars = [CounterVar|_],
-      maplist(append_iter(CounterVar), Auto1.epses, Epses),
-      maplist(append_iter(CounterVar), Auto1.trans, Trans),
-      Auto = Auto1.put([epses=Epses, trans = Trans]).
+mod_time_trans(none, Trans, Trans).
+mod_time_trans(time(TVar), Trans0, Trans)
+   :- maplist(mod_time_trans_(TVar), Trans0, Trans).
 
-counter_epses(Auto, IterInit-IterFinal, CVar-CVar1, [Ei, Eu, Ef])
-   :- list_to_assoc([CVar-1], Sub),
-      list_to_assoc([CVar-CVar1], Sub1),
-      epsrev(Sub, Auto.initial, IterInit, Ei),
-      maplist(epsrev(CVar1 #= CVar + 1, Sub1, Auto.initial), Auto.final, Eu),
-      maplist(epsrev(IterFinal), Auto.final, Ef).
+mod_time_trans_(
+   TVar,
+   (trans(V, Type, P, Sub, S0, S1) :- C),
+   (trans(V, Type, P, Sub, S0, S1) :- C, event_types:event_time(V, TVar))
+). 
 
-mod_eps_(OSub-NSub, C,
-   (eps(S0, P, OSub, S1) :- C0),
-   (eps(S0, P, NSub, S1) :- C0, C) 
-).
+iter_eps(F, Ss-T, ListT-GList0, Xs1, Es)
+:- maplist(F, ListT, Xs1, Pairs, GList1),
+   append(GList0, GList1, GList),
+   glist_goals(GList, Goals),
+   maplist(epsrev(Goals, Pairs, T), Ss, Es).
 
-mod_init_eps(Aggr, EventT, Eps0, Eps)
-   :- EventT =.. [Type|ExprList],
-      maplist(init_expr, ExprList, InitList),
-      InitEvent =.. [Type|InitList],
-      mod_eps_(OSub-NSub, true, Eps0, Eps),
-      put_assoc(Aggr, OSub, InitEvent, NSub).
+init_expr(X=sum(_), X-0).
+init_expr(X=min(_), X-nothing).
+init_expr(X=max(_), X-nothing).
+init_expr(X=count, X-1).
+init_expr(X=avg(_), X-a(0,0)).
+init_expr(X=time, X-0).
 
-mod_upd_eps(Aggr, EventT-GList0, EventFresh0-EventFresh, Eps0, Eps)
-   :- EventT =.. [_|ExprList],
-      EventFresh0 =.. [_|Xs0],
-      EventFresh =.. [_|Xs],
-      maplist(update_goal, ExprList, Xs0, Xs, UpdGList0),
-      append(GList0, UpdGList0, UpdGList1),
-      glist_goals([(Aggr=EventFresh0)|UpdGList1], Goals),
-      mod_eps_(OSub-NSub, Goals, Eps0, Eps),
-      put_assoc(Aggr, OSub, EventFresh, NSub).
+update_goal(X0=sum(E), X, X0-X, X #= X0 + E).
+update_goal(X0=min(E), X, X0-X, so_auto_cp:ext_min(X0, E, X)).
+update_goal(X0=max(E), X, X0-X, so_auto_cp:ext_max(X0, E, X)).
+update_goal(X0=count, X, X0-X, X #= X0 + 1).
+update_goal(X0=avg(E), X, X0-X, so_auto_cp:update_avg(X0, E, X)).
+update_goal(X0=time, _, X0-X0, true).
 
-mod_fin_eps(Aggr-V, EventT-GList0, EventFresh0-EventFresh, Eps0, Eps)
-   :- EventT =.. [_|ExprList],
-      EventFresh0 =.. [_|Xs0],
-      EventFresh =.. [_|Xs],
-      maplist(finalize_goal, ExprList, Xs0, Xs, FinGList0),
-      append(GList0, FinGList0, FinGList1),
-      glist_goals([Aggr=EventFresh0|FinGList1], Goals),
-      mod_eps_(OSub-NSub, Goals, Eps0, Eps),
-      put_assoc(V, OSub, EventFresh, NSub).
-
-init_expr(sum(_), 0).
-init_expr(min(_), nothing).
-init_expr(max(_), nothing).
-init_expr(count(*), 1).
-init_expr(avg(_), a(0,0)).
-init_expr(count0(_), _).
-init_expr(time(_), 0).
-
-update_goal(sum(E), X0, X, X #= X0 + E).
-update_goal(min(E), X0, X, so_auto_cp:ext_min(X0, E, X)).
-update_goal(max(E), X0, X, so_auto_cp:ext_max(X0, E, X)).
-update_goal(count(*), X0, X, X #= X0 + 1).
-update_goal(avg(E), X0, X, so_auto_cp:update_avg(X0, E, X)).
-update_goal(count0(_), _, _, true).
-update_goal(time(_), _, _, true).
-
-finalize_goal(min(_), X0, X, X #= X0).
-finalize_goal(min(_), X0, X, so_auto_cp:fin_minmax(X0, X)).
-finalize_goal(max(_), X0, X, so_auto_cp:fin_minmax(X0, X)).
-finalize_goal(min(_), X0, X, so_auto_cp:fin_minmax(X0, X)).
-finalize_goal(count(*), X0, X, X #= X0).
-finalize_goal(avg(_), X0, X, so_auto_cp:fin_avg(X0, X)).
-finalize_goal(count0(CounterVar), _, X, X #= CounterVar).
-finalize_goal(time(TVar), _, X, X #= TVar).
+finalize_goal(X0=sum(_), _, X0-X0, true).
+finalize_goal(X0=min(_), X, X0-X, so_auto_cp:fin_minmax(X0, X)).
+finalize_goal(X0=max(_), X, X0-X, so_auto_cp:fin_minmax(X0, X)).
+finalize_goal(X0=count, _, X0-X0, true).
+finalize_goal(X0=avg(_), X, X0-X, so_auto_cp:fin_avg(X0, X)).
+finalize_goal(X0=time, _, X0-X0, true).
 
 /*
     Noskip helpers

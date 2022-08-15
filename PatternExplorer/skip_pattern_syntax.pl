@@ -12,6 +12,7 @@
 :- use_module(library(varnumbers)).
 :- use_module(library(assoc)).
 :- use_module(library(clpfd)).
+:- use_module(library(yall)).
 
 /*
     Syntax: pattern ::= any(X) | start(X) | event(typ, variable) | iter(pattern) |
@@ -28,12 +29,18 @@ noskip_pattern_(filter(P, _))
     :- noskip_pattern_(P).
 noskip_pattern_(event(_,_)).
 
+aggr_vars(L, Xs)
+    :- maplist([X = _, X]>>true, L, Xs0),
+       list_to_ord_set(Xs0, Xs),
+       length(Xs0, N0),
+       length(Xs, N),
+       N #= N0.
+
 pattern_binds(event(_,X), [X]).
 pattern_binds(start(X), [X]).
 pattern_binds(any(X), [X]).
 pattern_binds(iter(_), []).
-pattern_binds(iter(_, _, X), [X]).
-pattern_binds(aggr(_, _, X), [X]).
+pattern_binds(iter(_, L), Xs) :- aggr_vars(L, Xs).
 pattern_binds(Q1 or Q2, V)
     :- pattern_binds(Q1, V1),
        pattern_binds(Q2, V2),
@@ -66,6 +73,7 @@ dlist_ordset(Ls, B)
 cur_col(B), [s(B)] --> [s(B)].
 old_new_col(B0, B), [s(B)] --> [s(B0)].
 el_old_new(X, B0, B), [s(B)] --> [s(B0)],  {ord_add_element(B0, X, B)}.
+vars_old_new(Vars, B0, B), [s(B)] --> [s(B0)], {ord_union(Vars, B0, B)}.
 
 closed_(event(_, X))
      --> el_old_new(X, _, _).
@@ -73,22 +81,16 @@ closed_(start(X))
      --> el_old_new(X, _, _).
 closed_(any(X))
      --> el_old_new(X, _, _).
-closed_(iter(P))
+closed_(iter(P)) 
+    --> closed_(iter(P, [])).
+closed_(iter(P, List))
     --> cur_col(B0),
         closed_(P),
-        old_new_col(_, B0).
-closed_(iter(P, Event, X))
-    --> cur_col(B0),
-        closed_(P),
-        closed_filter_(Event),
-        old_new_col(_, B0),
-        el_old_new(X, _, _).
-closed_(aggr(P, List, X))
---> cur_col(B0),
-    closed_(P),
-    closed_filter_list_(List),
-    old_new_col(_, B0),
-    el_old_new(X, _, _).
+        {maplist([_ = E, E]>>true, List, List1)},
+        closed_filter_list_(List1),
+        {aggr_vars(List, Vs)},
+        {ord_union(B0, Vs, B)},
+        old_new_col(_, B).
 closed_(filter(P, C))
    --> closed_(P),
        closed_filter_(C).
@@ -137,11 +139,18 @@ closed_(select(Input, Output, Pattern))
         ord_subset(B1, B)
     }.
 
+closed_filter_(X)
+    --> {var(X)},
+        cur_col(B),
+        {ord_memberchk(X, B)}.
+closed_filter_('$VAR'(N))
+    --> cur_col(B),
+        {ord_memberchk('$VAR'(N), B)}. 
 closed_filter_(ref(X, _))
     --> cur_col(B),
         {ord_memberchk(X, B)}.
 closed_filter_(C)
-    --> {C =.. [F|Args], dif(F, ref)},
+    --> {nonvar(C), C =.. [F|Args], dif(F, ref), dif(F, '$VAR')},
         closed_filter_list_(Args).
 closed_filter_list_([]) --> [].
 closed_filter_list_([A|Args])
@@ -155,6 +164,9 @@ is_fresh(X)
     --> el_old_new(X, Vars0, _),
         {\+ ord_memberchk(X, Vars0)}.
 
+are_fresh([]) --> [].
+are_fresh([V|Vs]) --> is_fresh(V), are_fresh(Vs).
+
 is_unique_pattern_(event(_, X))
     --> is_fresh(X).
 is_unique_pattern_(any(X))
@@ -163,12 +175,10 @@ is_unique_pattern_(start(X))
     --> is_fresh(X).
 is_unique_pattern_(iter(P))
     --> is_unique_pattern_(P).
-is_unique_pattern_(iter(P, _, X))
+is_unique_pattern_(iter(P, L))
     --> is_unique_pattern_(P),
-        is_fresh(X).
-is_unique_pattern_(aggr(P, _, X))
---> is_unique_pattern_(P),
-    is_fresh(X).
+        {aggr_vars(L, Vs)},
+        are_fresh(Vs).
 is_unique_pattern_(filter(P, _))
     --> is_unique_pattern_(P).
 is_unique_pattern_(noskip(P, E, _))
@@ -293,20 +303,14 @@ pattern_unique(iter(P0), iter(P))
     --> renaming(A),
         pattern_unique(P0, P),
         set_renaming(_, A).
-pattern_unique(iter(P0, Event0, '$VAR'(N)), iter(P, Event, '$VAR'(M)))
+pattern_unique(iter(P0, List0), iter(P, List))
     --> renaming(A),
         pattern_unique(P0, P),
         set_renaming(A1, A),
-        {term_vars_renamed(A1, Event0, Event)},
-        fresh(M),
-        rename_old_to_new(N, M).
-pattern_unique(aggr(P0, List0, '$VAR'(N)), aggr(P, List, '$VAR'(M)))
---> renaming(A),
-    pattern_unique(P0, P),
-    set_renaming(A1, A),
-    {maplist(term_vars_renamed(A1), List0, List)},
-    fresh(M),
-    rename_old_to_new(N, M).
+        {maplist([A=_, A]>>true, List0, Vs0)},
+        rename_list_(Vs0, Vs),
+        {maplist({A1}/[A = F0, V, V = F]>>term_vars_renamed(A1, F0, F), 
+             List0, Vs, List)}.
 pattern_unique(filter(P0, C0), filter(P, C))
     --> pattern_unique(P0, P),
         renaming(A),

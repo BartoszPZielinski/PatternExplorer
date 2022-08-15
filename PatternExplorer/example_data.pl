@@ -23,11 +23,7 @@ def_event_types([
        and time. */
     velocity(id, max, min, avg, start_time, time),
     /* The bus id reports location location_id at time time.*/
-    location(id, location_id, time),
-    /* Events used for aggregation only */
-    agg(cnt),
-    /* Parameter event */
-    lambda(par)
+    location(id, location_id, time)
 ]).
 
 pattern(-1,  select(in, out, 
@@ -78,10 +74,12 @@ pattern(7, select(in, out,
 )).
 
 pattern(8, select(in, out, 
-   filter(iter(event(driver_in, X), agg(count(*)), Y), 
-   ref(Y, cnt) #=3
+   filter(iter(event(driver_in, X), [Count=count]), 
+   Count #= 3
 )
 )).
+
+pattern(9, select(inp, out, iter(event(driver_in, X), [Count=count]))).
 
 
 
@@ -108,9 +106,8 @@ filter(event(stop_enter, Se), ref(Se, delta_schedule) #>= 120) then noskip(
                event(sharp_turn, E),
                ref(E, id) #= ref(Se, id) 
             ),
-            agg(count(*)), 
-            I
-         ), ref(I, cnt) #>= 3
+            [Count = count]
+         ), Count #>= 3
       ) then filter(
             event(stop_enter, K), ref(K, id) #= ref(Se, id)
       ),
@@ -163,9 +160,9 @@ pattern(100, select(inp(Lambda), out(D, M),
                 event(abrupt_decel, AD),
                 ref(AD, id) #= ref(D, id)
              ), event(driver_out, D2), ref(D2, drv_id) #= ref(D, drv_id)
-         ), agg(count(*)), C
+         ), [Count=count]
       ),
-      ref(C, cnt) #= ref(Lambda, par)  
+      Count #= Lambda 
     ) then start(M)
 )).
 
@@ -177,9 +174,9 @@ pattern(101, select(inp(D, M, Lambda), out,
                ref(S, id) #= ref(D, id) #/\
                ref(S, time) #> ref(D, time) #/\ 
                ref(S, time) #< ref(M, time)
-            ), agg(count(*)), H 
+            ), [Count=count]
          ),
-         ref(H, cnt) #= ref(Lambda, par) 
+         Count #= Lambda
       )
 )).
 
@@ -192,9 +189,9 @@ pattern(102, select(inp(D, M, Lambda), out,
                event(sharp_turn, S),
                ref(S, id) #= ref(D, id) #/\
                ref(S, time) #< ref(M, time)
-            ), agg(count(*)), H 
+            ), [Count=count]
          ),
-         ref(H, cnt) #= ref(Lambda, par) 
+         Count #= Lambda 
       )
 )).
 
@@ -256,9 +253,15 @@ pattern(300, select(inp, out,
 )).
 
 pattern(400, select(inp, out, 
-   filter(aggr(event(stop_enter, X), [], Y), ref(Y, count) #= 3)
+   filter(iter(event(stop_enter, X), [C = count]), C #= 3)
 )).
 
+pattern(500, select(inp, out(X), event(stop_enter, X))).
+pattern(501, select(inp(X, T), out, 
+   filter(event(stop_leave, Y), ref(X, id) #= ref(Y, id) #/\ ref(Y, time) #= T)
+)).
+
+example(0, ex(500, out(X)-inp(X, 5), 501)).
 example(1, ex(10, out(X, T)-inp(X, T), 11)).
 example(2, ex(0)).
 example(3, ex(1)).
@@ -275,8 +278,8 @@ example(21, ex(12, inp(driver_in(10, _, _)))).
 example(30, ex(20)).
 example(31, ex(21)).
 example(32, ex(31, out-inp, 32)).
-example(100, ex(100, inp(lambda(3))-out(D, M)-inp(D, M, lambda(3)), 101)).
-example(101, ex(100, inp(lambda(3))-out(D, M)-inp(D, M, lambda(3)), 102)).
+example(100, ex(100, inp(3)-out(D, M)-inp(D, M, 3), 101)).
+example(101, ex(100, inp(3)-out(D, M)-inp(D, M, 3), 102)).
 example(200, ex(200)).
 example(201, ex(201)).
 example(202, ex(202)).
@@ -286,3 +289,5 @@ example(205, ex(205)).
 example(206, ex(206)).
 example(300, ex(300)).
 example(400, ex(400)).
+example(600, ex(10)).
+example(601, ex(9)).

@@ -48,21 +48,12 @@ pattern_lines_(iter(P), Vars, N)
         {N1 #= N + 1}, pattern_lines_(P, Vars, N1),
         start_spaces(N), [')~n'-[]].
 
-pattern_lines_(iter(P, Event, X), Vars, N)
+pattern_lines_(iter(P, List), Vars, N)
 --> start_spaces(N), ['iter(~n'-[]], 
     {N1 #= N + 1}, pattern_lines_(P, Vars, N1),
     start_spaces(N), 
-    {term_vars_atom(Event, Vars, Atom0),
-     term_vars_atom(X, Vars, Atom1)},
-    [', ', Atom0, ', ', Atom1, ')~n'-[]].
-
-pattern_lines_(aggr(P, List, X), Vars, N)
---> start_spaces(N), ['aggr(~n'-[]], 
-    {N1 #= N + 1}, pattern_lines_(P, Vars, N1),
-    start_spaces(N), 
-    {term_vars_atom(List, Vars, Atom0),
-     term_vars_atom(X, Vars, Atom1)},
-    [', ', Atom0, ', ', Atom1, ')~n'-[]].
+    {term_vars_atom(List, Vars, Atom0)},
+    [', ', Atom0, ')~n'-[]].
 
 pattern_lines_(noskip(P, Event, Cond), Vars, N)
 --> start_spaces(N), ['noskip(~n'-[]], 
@@ -244,10 +235,8 @@ pattern_path_short(noskip(P, _), pos(L), noskip(PShort, '...'))
     :- pattern_path_short(P, pos(L), PShort).
 pattern_path_short(iter(P), pos([i(N) | L]), iter(PShort) * i(N))
     :- pattern_path_short(P, pos(L), PShort).
-pattern_path_short(iter(P, _, X), pos([i(N) | L]), iter(PShort, '...', X) * i(N))
-    :- pattern_path_short(P, pos(L), PShort).
-pattern_path_short(aggr(P, _, X), pos([i(N) | L]), aggr(PShort, '...', X) * i(N))
-    :- pattern_path_short(P, pos(L), PShort).
+pattern_path_short(iter(P, _), pos([i(N) | L]), iter(PShort, '...') * i(N))
+:- pattern_path_short(P, pos(L), PShort).
 
 html_solutions(ExId, MaxDepth, NSols, SolutionLis)
     :- numbered_solutions(ExId, MaxDepth, NSols, Sols),

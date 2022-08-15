@@ -3,18 +3,17 @@
         fresh_states//2,
         fresh_var//1,
         fresh_vars//1,
-        event_fresh//2,
         current_vars//1,
         replace_vars//2,
         last_matched//1,
         init_state/4,
         add_var//3,
         term_trans_goals//3,
+        terms_trans_goals_//3,
         glist_goals/2,
         cond_trans//2,
         renumber_var/4,
-        fresh_event//2,
-        specials//2
+        args_fresh_vars//2
     ]).
 
 :- use_module(library(clpfd)).
@@ -31,12 +30,12 @@ state(S), [S] --> [S].
 state(S0, S), [S] --> [S0].
 
 fresh_state(S, Vs)
-   --> state(a(M0, Vars, Id, LastMatched, LastTime), 
-             a(M, Vars, Id, LastMatched, LastTime)),
+   --> state(a(M0, Vars, Id, LastMatched), 
+             a(M, Vars, Id, LastMatched)),
        {
           M #= M0 + 1,
           term_to_atom(s(Id, M0), Sid),
-          S =.. [Sid, LastMatched, LastTime | Vs]
+          S =.. [Sid, LastMatched | Vs]
        }.
 
 fresh_states([], []) --> [].
@@ -45,8 +44,8 @@ fresh_states([S|States], [Vs|Vss])
        fresh_states(States, Vss).
 
 fresh_var('$VAR'(M0))
-   --> state(a(M0, Vars, Id, LastMatched, LastTime), 
-             a(M, Vars, Id, LastMatched, LastTime)),
+   --> state(a(M0, Vars, Id, LastMatched), 
+             a(M, Vars, Id, LastMatched)),
        {M #= M0 + 1}.
 
 fresh_vars([]) --> [].
@@ -54,48 +53,29 @@ fresh_vars([V|Vs])
    --> fresh_var(V),
        fresh_vars(Vs).
 
-fresh_event(E, Attrs)
-   --> state(a(M0, Vars, Id, LastMatched, LastTime), 
-             a(M, Vars, Id, LastMatched, LastTime)),
-       {
-            M #= M0 + 1,
-            term_to_atom(e(Id, M0), Eid),
-            E =.. [Eid|Attrs]
-       }.
-
 args_fresh_vars([], []) --> [].
 args_fresh_vars([_|As], [V|Vs])
    --> fresh_var(V),
        args_fresh_vars(As, Vs).
 
-event_fresh(Event0, Event)
-   --> {Event0 =.. [Type | Args]}, 
-       args_fresh_vars(Args, Vs),
-       {Event =.. [Type | Vs]}.
-
 current_vars(Vars)
-      --> state(a(_, Vars, _, _, _)).
+      --> state(a(_, Vars, _, _)).
 
 replace_vars(Vars0, Vars)
-   --> state(a(M, Vars0, Id, LastMatched, LastTime), 
-             a(M, Vars, Id, LastMatched, LastTime)).
+   --> state(a(M, Vars0, Id, LastMatched), 
+             a(M, Vars, Id, LastMatched)).
 
 add_var(Vars0, V, Vars)
-   --> state(a(M, Vars0, Id, LastMatched, LastTime), 
-             a(M, Vars, Id, LastMatched, LastTime)),
+   --> state(a(M, Vars0, Id, LastMatched), 
+             a(M, Vars, Id, LastMatched)),
        {ord_add_element(Vars0, V, Vars)}.
 
 last_matched(LastMatched)
-   --> state(a(_, _, _, LastMatched, _)).
+   --> state(a(_, _, _, LastMatched)).
 
-specials(LastMatched, LastTime)
-   --> state(a(_,_,_,LastMatched, LastTime)).
-
-init_state(M0, Id, Vs0, [a(M, Vs, Id, LastMatched, LastTime)])
-    :-  M1 #= M0 +1,
-        M #= M1 + 1,
+init_state(M0, Id, Vs0, [a(M, Vs, Id, LastMatched)])
+    :-  M #= M0 +1,
         LastMatched = '$VAR'(M0),
-        LastTime = '$VAR'(M1),
         list_to_ord_set(Vs0, Vs). 
         
 /*
