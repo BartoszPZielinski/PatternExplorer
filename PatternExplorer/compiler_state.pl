@@ -17,6 +17,7 @@
     ]).
 
 :- use_module(library(clpfd)).
+:- use_module(library(yall)).
 
 /*
   States a(M, Vars, Id, LastMatched), where:
@@ -38,25 +39,17 @@ fresh_state(S, Vs)
           S =.. [Sid, LastMatched | Vs]
        }.
 
-fresh_states([], []) --> [].
-fresh_states([S|States], [Vs|Vss])
-   --> fresh_state(S, Vs),
-       fresh_states(States, Vss).
+fresh_states(States, Vss, S0, S1) 
+   :- foldl(fresh_state, States, Vss, S0, S1). 
 
 fresh_var('$VAR'(M0))
-   --> state(a(M0, Vars, Id, LastMatched), 
-             a(M, Vars, Id, LastMatched)),
+   --> state(a(M0, Vars, Id, LastMatched), a(M, Vars, Id, LastMatched)),
        {M #= M0 + 1}.
 
-fresh_vars([]) --> [].
-fresh_vars([V|Vs])
-   --> fresh_var(V),
-       fresh_vars(Vs).
+fresh_vars(Vs, S0, S1) :- foldl(fresh_var, Vs, S0, S1).
 
-args_fresh_vars([], []) --> [].
-args_fresh_vars([_|As], [V|Vs])
-   --> fresh_var(V),
-       args_fresh_vars(As, Vs).
+args_fresh_vars(As, Vs, S0, S1)
+   :- foldl([_, V, S0_, S1_]>>fresh_var(V, S0_, S1_), As, Vs, S0, S1).
 
 current_vars(Vars)
       --> state(a(_, Vars, _, _)).
@@ -66,8 +59,7 @@ replace_vars(Vars0, Vars)
              a(M, Vars, Id, LastMatched)).
 
 add_var(Vars0, V, Vars)
-   --> state(a(M, Vars0, Id, LastMatched), 
-             a(M, Vars, Id, LastMatched)),
+   --> replace_vars(Vars0, Vars),
        {ord_add_element(Vars0, V, Vars)}.
 
 last_matched(LastMatched)
@@ -91,10 +83,7 @@ term_trans_goals(
  ) --> {dif(Field, time)}, fresh_var(V), !.
 
 term_trans_goals(Cond, Trans, Goals)
-   --> {
-          Cond =.. [F|L], 
-          dif(F, ref)
-       },
+   --> {Cond =.. [F|L], dif(F, ref)},
        terms_trans_goals_(L, L1, Goals),
        {Trans =.. [F|L1]}.
 

@@ -89,6 +89,7 @@ match_list(Id, L0, L, MTrees, Options)
          [a(I, [], 0, 0, MaxLen)], 
          [a(S, _, T, _, _)]
       ),
+      %C #= MaxLen,
       attr_dom(time, T),
       final(S, Output),
       squash(MTree0, MTree),

@@ -54,7 +54,7 @@ match_list_ns(Id, L0, L, MTrees, Options)
       ),
       attr_dom(time, T),
       final(S, Output),
-      squash(MTree0, MTree)
+      squash(MTree0, MTree),
       append(MTreesOut, [MTree], MTrees). 
 
 make_skips(L0, L, _) --> {var(L0), !, copy_term(L0, L)}.

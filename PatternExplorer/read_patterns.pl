@@ -11,7 +11,7 @@ assert_file_rec
 
 proc_term_rec(end_of_file, _).
 proc_term_rec(pattern(Id, Select), Vars)
-    :- (closed(Select, _))
+    :- (closed_select(Select, _))
        -> (
             assertz(pattern:pattern(Id, Select, Vars)),  
             assert_file_rec

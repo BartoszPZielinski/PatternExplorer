@@ -29,17 +29,21 @@ def_event_types([
 pattern(-1,  select(in, out, 
 filter(event(location, X), ref(X, location_id) #> 10) 
 )).
-pattern(0, select(in, out, event(location, X))).
+pattern(0, select(in, out, event(location, X) then (event(velocity, Y) 
+and event(driver_in, Z)))).
+
 pattern(1, select(in, out, 
         filter(event(location, X), ref(X, location_id) #= 10)
+      then event(velocity, Y)
    )).
 pattern(2, select(in, out, 
-        filter(event(location, X), ref(X, location_id) #= 10) or event(velocity, X)
+        filter(event(location, X), ref(X, location_id) #= 10) 
+            or filter(event(location, X), ref(X, location_id)#=20)
    )).
 pattern(3, select(in, out, 
         filter(
-           filter(event(location, X), ref(X, location_id) #= 10) 
-                 or event(velocity, X),
+           event(velocity, X) or
+           event(location, X),
            ref(X, time) #> 10
         )
    )).
@@ -64,13 +68,13 @@ pattern(5, select(in, out,
 
 pattern(6, select(in, out, 
     event(driver_in, X) then noskip(
-             event(abrupt_accel, Y), event(abrupt_accel, Z),
-             ref(X, id) = ref(Z, id) 
+             event(abrupt_accel, Y), 
+             filter(event(abrupt_accel, Z), ref(X, id) #= ref(Z, id)) 
        )
 )).
 
 pattern(7, select(in, out, 
-   iter(event(driver_in, X))
+   iter(filter(event(driver_out, Y), ref(Y, id)#=1))
 )).
 
 pattern(8, select(in, out, 
@@ -92,11 +96,9 @@ filter(event(stop_enter, Se), ref(Se, delta_schedule) #>= 120) then noskip(
          event(stop_leave, Sl), 
          ref(Sl, id) #= ref(Se, id) #/\ ref(Se, stop_id) #= ref(Sl, stop_id)
       ),
-      event(stop_leave, L),
-      ref(L, id) #= ref(Se, id)
+      filter(event(stop_leave, L), ref(L, id) #= ref(Se, id))
    ), 
-   event(driver_in, Di),
-   ref(Di, id) #= ref(Se, id)
+   filter(event(driver_in, Di), ref(Di, id) #= ref(Se, id))
 ) then noskip(
       filter(
          iter(
@@ -111,8 +113,7 @@ filter(event(stop_enter, Se), ref(Se, delta_schedule) #>= 120) then noskip(
       ) then filter(
             event(stop_enter, K), ref(K, id) #= ref(Se, id)
       ),
-      event(stop_enter, T),
-      ref(T, id) #= ref(Se, id)
+      filter(event(stop_enter, T), ref(T, id) #= ref(Se, id))
 )
 )).
 
@@ -134,7 +135,7 @@ pattern(12, select(inp(X), out,
 pattern(20, select(inp, out, 
    event(driver_in, X) then 
    start(Y) then 
-   filter(event(driver_out, Z), ref(Y, id) #= ref(Z, id)) 
+   filter(event(driver_out, Z), ref(X, id) #= ref(Z, id)) 
 )).
 
 pattern(21, select(inp, out, 
@@ -144,7 +145,8 @@ pattern(21, select(inp, out,
 pattern(31, select(inp, out, 
     noskip(
        filter(event(driver_in, X), ref(X, id) #= 1),
-       event(driver_out, Y), ref(Y, id) #= 1)
+       filter(event(driver_out, Y), ref(Y, id) #= 1)
+    )
 )).
 
 pattern(32, select(inp, out, 
@@ -159,7 +161,7 @@ pattern(100, select(inp(Lambda), out(D, M),
              filter(
                 event(abrupt_decel, AD),
                 ref(AD, id) #= ref(D, id)
-             ), event(driver_out, D2), ref(D2, drv_id) #= ref(D, drv_id)
+             ), filter(event(driver_out, D2), ref(D2, drv_id) #= ref(D, drv_id))
          ), [Count=count]
       ),
       Count #= Lambda 
@@ -195,13 +197,18 @@ pattern(102, select(inp(D, M, Lambda), out,
       )
 )).
 
-pattern(200, select(inp, out, event(driver_in, X) and event(sharp_turn, S))).
+pattern(200, select(inp, out, 
+   
+   event(driver_in, X) and 
+   filter(event(sharp_turn, S), ref(S, id) #=1)
+
+)).
 
 pattern(201, select(inp, out, 
    filter(event(stop_enter, X), ref(X, id) #= 1) then (
       filter(
          start(Y) then event(driver_in, D),
-         ref(D, id) #= ref(Y, id)   
+         ref(D, id) #= ref(X, id)   
       ) and filter(event(sharp_turn, S), ref(S, id) #=2) 
    )
 )).
@@ -214,14 +221,14 @@ pattern(202, select(inp, out,
       filter(event(stop_leave, Y), ref(Y, id) #=10)
    ) then filter(
       start(Z) then event(sharp_turn, T), 
-      ref(Z, id) #= ref(T, id)
+      ref(Z, time) #= ref(T, id)
    )   
 )).
 
 pattern(203, select(inp, out, 
    (iter(event(stop_enter, X)) and event(driver_in, Y)) then filter(
       start(Z) then event(sharp_turn, T), 
-      ref(Z, id) #= ref(T, id)
+      ref(Z, time) #= ref(T, id)
    )   
 )).
 

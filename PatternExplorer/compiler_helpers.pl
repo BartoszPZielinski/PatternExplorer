@@ -21,10 +21,12 @@
         empty_auto/3,
         appends_bin_/5,
         localize_auto//4,
-        mod_time_trans/3,
+        mod_time_trans/4,
         get_time_var/2,
         get_count_var//3,
-        iter_eps/5
+        iter_eps/5,
+        mod_auto/3,
+        mk_auto/4
     ]).
 
 :- use_module(library(clpfd)).
@@ -41,18 +43,39 @@ empty_auto(Initial, Final, auto{
    final: Final
 }).
 
+mod_auto(Trans, Auto0, Auto)
+   :- foldl(mod_auto_, Trans, Auto0, Auto).
+
+mk_auto(Initial, Final, Trans, Auto)
+   :- empty_auto(Initial, Final, Auto0),
+      mod_auto(Trans, Auto0, Auto).
+
+mod_auto_(r(Attr, Val), Auto0, Auto)
+   :- Auto=Auto0.put([Attr=Val]).
+
+mod_auto_(ra(Attr, L), Auto0, Auto)
+   :- append(L, Val),
+      Auto=Auto0.put([Attr=Val]).
+
+mod_auto_(a(Attr, Val), Auto0, Auto)
+   :- append(Val, Auto0.Attr, L),
+      Auto=Auto0.put([Attr=L]).
+
+mod_auto_(aa(Attr, L0), Auto0, Auto)
+   :- append([Auto0.Attr|L0], L),
+      Auto=Auto0.put([Attr=L]).
+
 %%%%% Some compilation helpers
 
 appends_bin_(Auto1, Auto2, Initial, Final, Auto)
 :- maplist(append_pos(p(1)), Auto1.trans, T1),
    maplist(append_pos(p(2)), Auto2.trans, T2),
-   maplist(append_pos(p(1)), Auto1.epses, Es01),
-   maplist(append_pos(p(2)), Auto2.epses, Es02),
-   append(T1, T2, Ts),
-   append(Es01, Es02, Es),
-   append(Auto1.skips, Auto2.skips, Skips),
-   empty_auto(Initial, Final, Auto0),
-   Auto = Auto0.put([trans=Ts, epses=Es, skips=Skips]).
+   maplist(append_pos(p(1)), Auto1.epses, Es1),
+   maplist(append_pos(p(2)), Auto2.epses, Es2),
+   mk_auto(Initial, Final, [
+      ra(trans, [T1, T2]), ra(epses, [Es1, Es2]), 
+      ra(skips, [Auto1.skips, Auto2.skips])
+   ], Auto).
 
 %%%%% Adding variables
 
@@ -137,15 +160,15 @@ get_count_var([A = count|L], A, [A = count|L]) --> [].
 get_count_var([A = F|Ls0], CVar, [A = F|Ls]) 
    --> {dif(F, count)}, get_count_var(Ls0, CVar, Ls).
 
-mod_time_trans(none, Trans, Trans).
-mod_time_trans(time(TVar), Trans0, Trans)
-   :- maplist(mod_time_trans_(TVar), Trans0, Trans).
+mod_time_trans(none, _, Trans, Trans).
+mod_time_trans(time(TVar), TVar1, Trans0, Trans)
+   :- maplist(mod_time_trans_(TVar, TVar1), Trans0, Trans).
 
 mod_time_trans_(
-   TVar,
-   (trans(V, Type, P, Sub, S0, S1) :- C),
-   (trans(V, Type, P, Sub, S0, S1) :- C, event_types:event_time(V, TVar))
-). 
+   TVar, TVar1,
+   (trans(V, Type, P, Sub0, S0, S1) :- C),
+   (trans(V, Type, P, Sub1, S0, S1) :- C, event_types:event_time(V, TVar1))
+) :- put_assoc(TVar, Sub0, TVar1, Sub1).
 
 iter_eps(F, Ss-T, ListT-GList0, Xs1, Es)
 :- maplist(F, ListT, Xs1, Pairs, GList1),
@@ -196,10 +219,9 @@ localize_auto(Auto0, Vs, F, Auto)
    --> fresh_state(F, Vs),
        fresh_var(V),
        {
-            maplist(epsrev(F), Auto0.final, Es0),
-            append(Auto0.epses, Es0, Es),
-            Skips = [skip(F, V, [])|Auto0.skips],
-            Auto = Auto0.put([skips=Skips, epses=Es, final=[F]])
+            maplist(epsrev(F), Auto0.final, Es),
+            mod_auto([a(epses, Es), a(skips, [skip(F, V, [])]), r(final, [F])], 
+                     Auto0, Auto)
        }.
 
 merge_states(S1, S2, S)
@@ -301,4 +323,4 @@ subst_(
 subst_auto(Auto0, Auto)
    :- maplist(subst_, Auto0.trans, Trans),
       maplist(subst_, Auto0.epses, Epses),
-      Auto = Auto0.put([trans=Trans, epses=Epses]).
+      mod_auto([r(trans, Trans), r(epses, Epses)], Auto0, Auto).

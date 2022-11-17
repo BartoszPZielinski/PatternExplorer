@@ -38,25 +38,35 @@ compile_pattern(I)
      assert_regular(I, Pattern),
      format('Pattern ~w compiled ~n', [I]).
 
+%nums_to_(1, Max) :- 1<Max.
+%nums_to_(N, Max) :- Max>1, nums_to_(N0, Max), N is N0 + 1, (N < Max ; (N>=Max, !)).
+
+%
+nums_to_(N, N).
+
 run(ExId, MaxLen, L-MTrees)
     :- example(ExId, ex(Pid1, In1-Out1-In2, Pid2), _),
-        match_list(Pid1, _, L0, MTrees0, [input(In1), output(Out1),max_depth(MaxLen)]),
+        nums_to_(Len, MaxLen),
+        match_list(Pid1, _, L0, MTrees0, [input(In1), output(Out1),max_depth(Len)]),
         match_list(Pid2, L0, L, MTrees, 
-            [input(In2), inmtrees(MTrees0), max_depth(MaxLen)]).
+            [input(In2), inmtrees(MTrees0), max_depth(Len)]).
 
 run(ExId, MaxLen, L-MTrees)
     :- example(ExId, ex(Pid1, Out-In, Pid2), _),
-       match_list(Pid1, _, L0, MTrees0, [output(Out),max_depth(MaxLen)]),
+       nums_to_(Len, MaxLen),
+       match_list(Pid1, _, L0, MTrees0, [output(Out),max_depth(Len)]),
        match_list(Pid2, L0, L, MTrees, 
-           [input(In), inmtrees(MTrees0), max_depth(MaxLen)]).
+           [input(In), inmtrees(MTrees0), max_depth(Len)]).
 
 run(ExId, MaxLen, L-MTrees)
     :- example(ExId, ex(Pid, In), _),
-       match_list(Pid, _, L, MTrees, [max_depth(MaxLen), input(In), output(_)]). 
+       nums_to_(Len, MaxLen),
+       match_list(Pid, _, L, MTrees, [max_depth(Len), input(In), output(_)]). 
 
 run(ExId, MaxLen, L-MTrees)
 :- example(ExId, ex(Pid), _),
-   match_list(Pid, _, L, MTrees, [max_depth(MaxLen), output(_)]).
+   nums_to_(Len, MaxLen),
+   match_list(Pid, _, L, MTrees, [max_depth(Len), output(_)]).
 
 solutions(ExId, MaxLen, NSols, Sols)
     :- findnsols(NSols, sol(L, MTrees, Goals), (

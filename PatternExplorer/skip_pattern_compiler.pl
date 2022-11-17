@@ -52,8 +52,7 @@ comp_aut(start(V), Auto)
        fresh_states([S0, S1], [Vs0, Vs]),
        {
             epsrev(pos([]), true, [V-LastMatched], S1, S0, E),
-            empty_auto(S0, [S1], Auto0),
-            Auto = Auto0.put([epses=[E]])
+            mk_auto(S0, [S1], [r(epses, [E])], Auto)
         }.
 
 comp_aut(any(V), Auto) --> comp_aut(event(any, V), Auto).
@@ -66,8 +65,7 @@ comp_aut(event(Type, V), Auto)
        {
             list_to_assoc([LastMatched-V], Subst),
             T = (trans(V, Type, pos([]), Subst, S0, S1) :- true),
-            empty_auto(S0, [S1], Auto0),
-            Auto = Auto0.put([trans=[T], skips=[skip(S0, V1, [])]])
+            mk_auto(S0, [S1], [r(trans, [T]), r(skips, [skip(S0, V1, [])])], Auto)
        }.
 
 comp_aut(P1 then P2, Auto)
@@ -75,21 +73,18 @@ comp_aut(P1 then P2, Auto)
        comp_aut(P2, Auto2),
        {
             appends_bin_(Auto1, Auto2, Auto1.initial, Auto2.final, Auto0),
-            maplist(epsrev(Auto2.initial), Auto1.final, Es1),
-            append(Auto0.epses, Es1, Es),
-            Auto = Auto0.put([epses=Es])
+            maplist(epsrev(Auto2.initial), Auto1.final, Es),
+            mod_auto([a(epses, Es)], Auto0, Auto)
        }.
 
 comp_aut(P1 or P2, Auto)
-   --> par_compose_(P1-P2, Auto1-Auto2, ord_intersection, [Vs0|_]),
+   --> par_compose_(P1-P2, A1-A2, ord_intersection, [Vs0|_]),
        fresh_state(S0, Vs0),
        {
-          append(Auto1.final, Auto2.final, Fs),
-          appends_bin_(Auto1, Auto2, S0, Fs, Auto0),
+          appends_bin_(A1, A2, S0, [], A0),
           maplist({S0}/[I, Eps]>>(epsrev(I, S0, Eps)), 
-                  [Auto1.initial, Auto2.initial], Epses0),
-          append(Epses0, Auto0.epses, Epses),
-          Auto = Auto0.put([epses=Epses])
+                  [A1.initial, A2.initial], Es),
+          mod_auto([ra(final, [A1.final, A2.final]), a(epses, Es)], A0, Auto)
        }. 
 
 comp_aut(P1 and P2, Auto) 
@@ -109,14 +104,15 @@ comp_aut(P1 and P2, Auto)
          ),
          combine_lists(merge_eps_(left), Auto1.epses, States2, Es1),
          combine_lists(merge_eps_(right), Auto2.epses, States1, Es2),
-         append(Es1, Es2, Es),
          combine_lists(merge_skips_(F1, F2), Auto1.skips, Auto2.skips, Skips),
          combine_lists(merge_trans_, Auto1.trans, Auto2.trans, Trans1),
          combine_lists(merge_trans_skip_(left), Auto1.trans, Auto2.skips, Trans2),
          combine_lists(merge_trans_skip_(right),Auto2.trans, Auto1.skips, Trans3),
-         append([Trans1, Trans2, Trans3], Trans),
-         empty_auto(Initial, [Final], Auto0),
-         Auto = Auto0.put([trans=Trans, epses=Es, skips=Skips])
+         mk_auto(Initial, [Final], [
+            ra(epses, [Es1, Es2]), 
+            ra(trans, [Trans1, Trans2, Trans3]), 
+            r(skips, Skips)
+         ], Auto)
        }. 
 
 comp_aut(iter(P), Auto) 
@@ -133,23 +129,25 @@ comp_aut(iter(P, List0), Auto)
           },
           replace_vars(_, Vs),
           fresh_states([IterInit, IterFinal], [Vs0, Vs]),
+          fresh_var(TVar1),
           args_fresh_vars(Xs0, Xs1),
           terms_trans_goals_(List, ListT, GList0),
           {
                add_vars_to_auto([CVar|Xs0], Auto0, Auto1),
                maplist(append_iter(CVar), Auto1.epses, Epses0),
                maplist(append_iter(CVar), Auto1.trans, Trans0),
-               get_time_var(List0, T),
-               mod_time_trans(T, Trans0, Trans),
+               get_time_var(List0, TVar),
+               mod_time_trans(TVar, TVar1, Trans0, Trans),
                maplist(init_expr, ListT, Pairs),
                epsrev(Pairs, Auto1.initial, IterInit, Ei),
                iter_eps(update_goal, Auto1.final-Auto1.initial, 
                         ListT-GList0, Xs1, Eu),
                iter_eps(finalize_goal, Auto1.final-IterFinal, 
                         ListT-GList0, Xs1, Ef),
-               append([Ef, Eu, [Ei], Epses0], Epses),
-               Auto = Auto1.put([epses=Epses, initial=IterInit, trans=Trans,
-                                 final=[IterFinal]])
+               mod_auto([
+                  ra(epses, [Ef, Eu, [Ei], Epses0]),
+                  r(initial, IterInit), r(trans, Trans), r(final, [IterFinal])
+               ], Auto1, Auto)
           }. 
 
 comp_aut(filter(P, Cond), Auto)
@@ -158,24 +156,15 @@ comp_aut(filter(P, Cond), Auto)
        fresh_state(S, Vs),
        cond_trans(Cond, C),
        {
-         maplist(epsrev(C, [], S), Auto0.final, Es0),
-         append(Es0, Auto0.epses, Es),
-         Auto = Auto0.put([epses=Es, final=[S]])
+         maplist(epsrev(C, [], S), Auto0.final, Es),
+         mod_auto([a(epses, Es), r(final, [S])], Auto0, Auto)
        }.
-
-comp_aut(noskip(P, event(Type, V), Cond), Auto1)
-   --> comp_aut(P, Auto),
-       cond_trans(#\ Cond, C),
-       {
-          maplist(mod_skip(Type, V, C), Auto.skips, Skips),
-          Auto1 = Auto.put([skips=Skips])
-       }. 
 
 comp_aut(noskip(P, N), Auto1)
    --> comp_aut(P, Auto),
        {pat_nskip_(N, NS)},
        modify_skips_rec_(NS, Auto.skips, Skips),
-       {Auto1 = Auto.put([skips=Skips])}.
+       {mod_auto([r(skips, Skips)], Auto, Auto1)}.
 
 modify_skips_rec_([], Skips, Skips) --> [].
 modify_skips_rec_([nskip(V, Type, Cond)|NS], Skips0, Skips)
