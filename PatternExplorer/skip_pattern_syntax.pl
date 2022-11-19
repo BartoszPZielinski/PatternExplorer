@@ -19,7 +19,7 @@
 :- use_module('event_types.pl').
 
 /*
-    Syntax: pattern ::= any(X) | start(X) | event(typ, variable) | iter(pattern) |
+    Syntax: pattern ::=  event(typ, variable) | iter(pattern) |
     filter(pattern, condition)
     | noskip(pattern, event(type, variable), condition) |
     | noskip(pattern, noskip)|
@@ -37,8 +37,6 @@ aggr_vars(L, Xs, Es)
        list_unique(Xs, _).
 
 pattern_binds(event(_,X), [X]).
-pattern_binds(start(X), [X]).
-pattern_binds(any(X), [X]).
 pattern_binds(iter(_), []).
 pattern_binds(iter(_, L), Xs) :- aggr_vars(L, Xs, _).
 pattern_binds(Q1 or Q2, V)
@@ -63,14 +61,12 @@ closed(Pattern, Types)
        closed(Pattern, Empty, Types).
 
 closed(event(T, X), Ts0, Ts) :- use_var(event(T, X), Ts0, Ts).
-closed(start(X), Ts0, Ts) :- use_var(start(X), Ts0, Ts).
-closed(any(X), Ts0, Ts) :- use_var(event(any,X), Ts0, Ts).
 closed(iter(P), Ts0, Ts) :- closed(iter(P, []), Ts0, Ts).
 closed(iter(P, List), Ts0, Ts)
     :- closed(P, Ts0, Ts1),
        aggr_vars(List, Vs, Es),
        foldl(closed_filter, Es, Ts1, _),
-       use_var(iter(Vs), Ts0, Ts).
+       use_var(iter(Vs), Ts0, Ts). 
 closed(filter(P, C), Ts0, Ts)
     :- closed(P, Ts0, Ts1),
        closed_filter(C, Ts1, Ts).
@@ -138,8 +134,6 @@ vars_cont_expr(Vs, E)
 is_unique_pattern(Pattern) :- is_unique_pattern(Pattern, [], _).
 
 is_unique_pattern(event(_, X), Vs0, Vs) :- is_fresh(X, Vs0, Vs).
-is_unique_pattern(any(X), Vs0, Vs) :- is_fresh(X, Vs0, Vs).
-is_unique_pattern(start(X), Vs0, Vs) :- is_fresh(X, Vs0, Vs).
 is_unique_pattern(iter(P), Vs0, Vs) :- is_unique_pattern(P, Vs0, Vs).
 is_unique_pattern(iter(P, L), Vs0, Vs)
     :- is_unique_pattern(P, Vs0, Vs1),
@@ -215,8 +209,6 @@ make_pattern_unique(Pattern, Unique)
        varnumbers(Unique0, Unique).
 
 pattern_unique(event(T, X), event(T, Y), S0, S) :- ren_var_(X, Y, S0, S).
-pattern_unique(any(X), any(Y), S0, S) :- ren_var_(X, Y, S0, S).
-pattern_unique(start(X), start(Y), S0, S) :- ren_var_(X, Y, S0, S).
 pattern_unique(iter(P0), iter(P), S0, S)
     :- pattern_unique(iter(P0, []), iter(P, []), S0, S).
 pattern_unique(iter(P0, Ls0), iter(P, Ls), M0-A0, M-A)

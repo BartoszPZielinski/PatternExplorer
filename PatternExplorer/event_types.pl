@@ -88,7 +88,7 @@ A variable can have the following typing:
               types T₁, T₂, …, Tₙ
 */
 use_var(iter(Vars), A0, A)
-   :- foldl([V, A0, A]>>put_assoc(V, A0, scalar, A),Vars, A0, A).
+   :- foldl([V, A0_, A_]>>put_assoc(V, A0_, scalar, A_),Vars, A0, A).
 use_var(start(X), A0, A)
    :- put_assoc(X, A0, any([any]), A).
 use_var(event(T, X), A0, A)
@@ -116,41 +116,3 @@ branch_types(any([T]), all(L0), all(L)) :- ord_add_element(L0, T, L).
 branch_types(any([T1]), any([T2]), all(L)) :- list_to_ord_set([T1, T2], L).
 
 
-%unify_type(undefined, T, T).
-%unify_type(T, undefined, T) :- dif(T, undefined).
-%unify_type(scalar, scalar, scalar).
-%unify_type(event(T1), event(T2), event(T))
-%   :- ord_intersection(T1, T2, T),
-%      T = [_|_].
-
-%union_type(undefined, T, T).
-%union_type(T, undefined, T) :- dif(T, undefined).
-%union_type(scalar, scalar, scalar).
-%union_type(event(T1), event(T2), event(T))
-%   :- ord_union(T1, T2, T). 
-
-%union_assocs(F, A1, A2, A)
-%   :- assoc_to_list(A1, Pairs),
-%      foldl(add_unify_(F), Pairs, A2, A).
-
-%intersect_assocs(F, A1, A2, A)
-%   :- assoc_to_keys(A1, Ks1),
-%      assoc_to_keys(A2, Ks2),
-%      ord_intersection(Ks1, Ks2, Ks),
-%      maplist({F, A1, A2}/[K, K-V]>>(
-%         get_assoc(K, A1, V1),
-%         get_assoc(K, A2, V2),
-%         call(F, V1, V2, V)
-%      ), Ks, Pairs),
-%      list_to_assoc(Pairs, A).
-
-%dominate_assocs(A1, A2, A)
-%   :- assoc_to_list(A2, Pairs),
-%      foldl([K-V, X0, X]>>put_assoc(K, X0, V, X), Pairs, A1, A).
-
-%union_types(A1, A2, A) :- union_assocs(unify_type, A1, A2, A).
-%intersect_types(A1, A2, A) :- intersect_assocs(unify_type, A1, A2, A).
-
-%add_unify_(F, K-V, A0, A)
-%   :- (get_assoc(K, A0, V0) -> call(F, V0, V, V1) ; V1 = V), 
-%      put_assoc(K, A0, V1, A).

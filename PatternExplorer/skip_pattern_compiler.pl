@@ -18,7 +18,7 @@
     Automatons are represented (during compilation) by dicts of the form
     auto{
          trans: [trans(V, Type, pos([L]), Subst, S0, S1):-G, ...],
-         epses: [eps(S0, StartPos, Subst, S1), ...],
+         epses: [eps(S0,  Subst, S1), ...],
          skips: [skip(S, V1, event_specs), ...],
          initial: S,
          final: [S, ...]
@@ -28,9 +28,6 @@
     An event E is skippable in state S0 iff its type either is not on the list skips or it is 
     and then the condition is satisfied. The variable V1 is used
     to refer to the event under consideration in all the conditions.
-   StartPos in eps is the position of the form pos(L) of start(X) subterm if the given eps corresponds 
-   to saving the value of a last matched event in a variable. It is skip 
-   otherwise.
 */
 
 compile_query_pure(Id, Pattern, M0, Vs, Automaton)
@@ -46,24 +43,12 @@ par_compose_(P1-P2, Auto1-Auto2, Op, [Vs0, Vs1, Vs2, Vs])
        replace_vars(Vs2, Vs),
        {call(Op, Vs1, Vs2, Vs)}. 
 
-comp_aut(start(V), Auto) 
-   --> last_matched(LastMatched),
-       add_var(Vs0, V, Vs),
-       fresh_states([S0, S1], [Vs0, Vs]),
-       {
-            epsrev(pos([]), true, [V-LastMatched], S1, S0, E),
-            mk_auto(S0, [S1], [r(epses, [E])], Auto)
-        }.
-
-comp_aut(any(V), Auto) --> comp_aut(event(any, V), Auto).
-
 comp_aut(event(Type, V), Auto) 
    --> fresh_var(V1),
        add_var(Vs0, V, Vs),
-       last_matched(LastMatched),
        fresh_states([S0, S1], [Vs0, Vs]),
        {
-            list_to_assoc([LastMatched-V], Subst),
+            empty_assoc(Subst),
             T = (trans(V, Type, pos([]), Subst, S0, S1) :- true),
             mk_auto(S0, [S1], [r(trans, [T]), r(skips, [skip(S0, V1, [])])], Auto)
        }.
@@ -115,8 +100,7 @@ comp_aut(P1 and P2, Auto)
          ], Auto)
        }. 
 
-comp_aut(iter(P), Auto) 
-      --> comp_aut(iter(P,[]), Auto).
+comp_aut(iter(P), Auto) --> comp_aut(iter(P,[]), Auto).
 
 comp_aut(iter(P, List0), Auto)
       --> current_vars(Vs0),
@@ -129,15 +113,12 @@ comp_aut(iter(P, List0), Auto)
           },
           replace_vars(_, Vs),
           fresh_states([IterInit, IterFinal], [Vs0, Vs]),
-          fresh_var(TVar1),
           args_fresh_vars(Xs0, Xs1),
           terms_trans_goals_(List, ListT, GList0),
           {
-               add_vars_to_auto([CVar|Xs0], Auto0, Auto1),
-               maplist(append_iter(CVar), Auto1.epses, Epses0),
+               add_vars_to_auto(Xs0, Auto0, Auto1),
                maplist(append_iter(CVar), Auto1.trans, Trans0),
-               get_time_var(List0, TVar),
-               mod_time_trans(TVar, TVar1, Trans0, Trans),
+               mod_time_trans(List0, Trans0, Trans),
                maplist(init_expr, ListT, Pairs),
                epsrev(Pairs, Auto1.initial, IterInit, Ei),
                iter_eps(update_goal, Auto1.final-Auto1.initial, 
@@ -145,7 +126,7 @@ comp_aut(iter(P, List0), Auto)
                iter_eps(finalize_goal, Auto1.final-IterFinal, 
                         ListT-GList0, Xs1, Ef),
                mod_auto([
-                  ra(epses, [Ef, Eu, [Ei], Epses0]),
+                  aa(epses, [Ef, Eu, [Ei]]),
                   r(initial, IterInit), r(trans, Trans), r(final, [IterFinal])
                ], Auto1, Auto)
           }. 
@@ -190,8 +171,8 @@ add_ns_cond_(C1, nskip(X, Type, C2), nskip(X, Type, C1 #/\ C2)).
 assert_trans((trans(V, Type, P, S0, S1) :- G))
    :- assertz((so_auto_cp:trans(S0, V, P, S1) :- event_types:event_type(V, Type), G)).
 
-assert_trans((eps(S0, P, S1) :- G))
-   :- assertz(so_auto_cp:eps(S0,P, S1):-G).
+assert_trans((eps(S0, S1) :- G))
+   :- assertz(so_auto_cp:eps(S0, S1):-G).
 
 assert_regular(Id, Select0)
     :-  numbervars(Select0, 0, M0),
@@ -202,19 +183,18 @@ assert_regular(Id, Select0)
         subst_auto(Auto0, Auto1),
         varnumbers(select(In0, Out0, Auto1), Select),
         Select = select(_, Out, Auto),
+        (
+         Id = 0 -> format(user_error, '~w~n', [Auto]) ; true 
+        ),
         maplist(assert_trans, Auto.trans),
         maplist(assert_trans, Auto.epses),
-        maplist(
-            [skip(S, V, L)]>>assertz(so_auto_cp:skip(S, X) :- skippable(X, V, L)),
-            Auto.skips
-        ),
         Auto.initial =.. [Sid|_],
         assertz((
            so_auto_cp:initial(Id, Input, Init) 
                :- Input =.. [_|Args],
                   length(Args, N),
                   N #= NVs,
-                  Init =.. [Sid, start(0)|Args]
+                  Init =.. [Sid|Args]
         )),
         maplist({Out}/[S]>>assertz(so_auto_cp:final(S, Out)), Auto.final),
         !.

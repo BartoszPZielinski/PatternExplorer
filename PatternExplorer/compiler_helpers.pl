@@ -1,5 +1,4 @@
 :- module(compiler_helpers, [
-        epsrev/6,
         epsrev/5,
         epsrev/4,
         epsrev/3,
@@ -21,8 +20,7 @@
         empty_auto/3,
         appends_bin_/5,
         localize_auto//4,
-        mod_time_trans/4,
-        get_time_var/2,
+        mod_time_trans/3,
         get_count_var//3,
         iter_eps/5,
         mod_auto/3,
@@ -70,19 +68,18 @@ mod_auto_(aa(Attr, L0), Auto0, Auto)
 appends_bin_(Auto1, Auto2, Initial, Final, Auto)
 :- maplist(append_pos(p(1)), Auto1.trans, T1),
    maplist(append_pos(p(2)), Auto2.trans, T2),
-   maplist(append_pos(p(1)), Auto1.epses, Es1),
-   maplist(append_pos(p(2)), Auto2.epses, Es2),
    mk_auto(Initial, Final, [
-      ra(trans, [T1, T2]), ra(epses, [Es1, Es2]), 
+      ra(trans, [T1, T2]), 
+      ra(epses, [Auto1.epses, Auto2.epses]), 
       ra(skips, [Auto1.skips, Auto2.skips])
    ], Auto).
 
 %%%%% Adding variables
 
 add_vars_to_state(Vars0, S0, S1)
-   :- S0 =.. [SId, LastMatched | Vars1],
+   :- S0 =.. [SId | Vars1],
       ord_union(Vars0, Vars1, Vars),
-      S1 =.. [SId, LastMatched | Vars].
+      S1 =.. [SId | Vars].
 
 add_vars_to_el(Vars, 
    (trans(V, Type, Pos, Subst, S00, S10) :- G),
@@ -90,8 +87,8 @@ add_vars_to_el(Vars,
 ) :- maplist(add_vars_to_state(Vars), [S00, S10], [S0, S1]).
 
 add_vars_to_el(Vars, 
-   (eps(S00, Pos, Subst,  S10) :- G),
-   (eps(S0, Pos, Subst, S1) :- G)
+   (eps(S00, Subst,  S10) :- G),
+   (eps(S0, Subst, S1) :- G)
 ) :- maplist(add_vars_to_state(Vars), [S00, S10], [S0, S1]).
 
 add_vars_to_el(Vars,
@@ -111,19 +108,8 @@ add_vars_to_auto(Vars0, Auto0, Auto)
       
 %%%% Position helpers
 
-head_tail_pos_(_, skip, skip).
-head_tail_pos_(H, pos(L), pos([H|L])).
-
-dir_tail_pos_(Dir, Pos0, Pos) 
-   :- (Dir=left -> H = p(1) ; H = p(2)),
-      head_tail_pos_(H, Pos0, Pos).
-
-append_pos(H, (trans(V, Type, P0, Sub, S0, S1) :- C), 
-             (trans(V, Type, P, Sub, S0, S1) :- C))
-   :- head_tail_pos_(H, P0, P).
-
-append_pos(H, (eps(S0, P0, Sub, S1) :- C), (eps(S0, P, Sub, S1) :- C))
-   :- head_tail_pos_(H, P0, P).
+append_pos(H, (trans(V, Type, pos(L), Sub, S0, S1) :- C), 
+             (trans(V, Type, pos([H|L]), Sub, S0, S1) :- C)).
 
 append_iter(
    CounterVar,
@@ -131,44 +117,35 @@ append_iter(
    (trans(V, Type, pos([i(CounterVar)|L]), Sub, S0, S1) :- G)
 ).
 
-append_iter(CounterVar, 
-   (eps(S0, P0, Sub, S1) :- G),
-   (eps(S0, P, Sub, S1) :- G)
-) :- head_tail_pos_(i(CounterVar), P0, P).
-
 /*
     Adding epses
  */
 
-epsrev(P, C, Pairs, S1, S0, (eps(S0, P, Sub, S1) :- C))
+epsrev(C, Pairs, S1, S0, (eps(S0, Sub, S1) :- C))
    :- list_to_assoc(Pairs, Sub).
-epsrev(C, Pairs, S1, S0, Eps) :- epsrev(skip, C, Pairs, S1, S0, Eps).
-epsrev(Pairs, S1, S0, Eps) :- epsrev(skip, true, Pairs, S1, S0, Eps).
-epsrev(S1, S0, Eps) :- epsrev(skip, true, [], S1, S0, Eps).
+epsrev(Pairs, S1, S0, Eps) :- epsrev(true, Pairs, S1, S0, Eps).
+epsrev(S1, S0, Eps) :- epsrev(true, [], S1, S0, Eps).
 
 /*
     Iteration helpers
  */
-
-get_time_var([], none).
-get_time_var([A = time | _], time(A)).
-get_time_var([_ = F | Ls], T)
-   :- dif(F, time), get_time_var(Ls, T).
 
 get_count_var([], CVar, [CVar=count]) --> fresh_var(CVar).
 get_count_var([A = count|L], A, [A = count|L]) --> [].
 get_count_var([A = F|Ls0], CVar, [A = F|Ls]) 
    --> {dif(F, count)}, get_count_var(Ls0, CVar, Ls).
 
-mod_time_trans(none, _, Trans, Trans).
-mod_time_trans(time(TVar), TVar1, Trans0, Trans)
-   :- maplist(mod_time_trans_(TVar, TVar1), Trans0, Trans).
+mod_time_trans([], Trans, Trans).
+mod_time_trans([TVar = time|_], Trans0, Trans) 
+   :- maplist(mod_time_trans_(TVar), Trans0, Trans).
+mod_time_trans([_=F|Ls], Trans0, Trans)
+   :- dif(F, time), mod_time_trans(Ls, Trans0, Trans).
 
 mod_time_trans_(
-   TVar, TVar1,
+   LastMatched,
    (trans(V, Type, P, Sub0, S0, S1) :- C),
-   (trans(V, Type, P, Sub1, S0, S1) :- C, event_types:event_time(V, TVar1))
-) :- put_assoc(TVar, Sub0, TVar1, Sub1).
+   (trans(V, Type, P, Sub1, S0, S1) :- C)
+) :- put_assoc(LastMatched, Sub0, V, Sub1).
 
 iter_eps(F, Ss-T, ListT-GList0, Xs1, Es)
 :- maplist(F, ListT, Xs1, Pairs, GList1),
@@ -181,21 +158,21 @@ init_expr(X=min(_), X-nothing).
 init_expr(X=max(_), X-nothing).
 init_expr(X=count, X-1).
 init_expr(X=avg(_), X-a(0,0)).
-init_expr(X=time, X-0).
+init_expr(X=time(_), X-0).
 
 update_goal(X0=sum(E), X, X0-X, X #= X0 + E).
 update_goal(X0=min(E), X, X0-X, so_auto_cp:ext_min(X0, E, X)).
 update_goal(X0=max(E), X, X0-X, so_auto_cp:ext_max(X0, E, X)).
 update_goal(X0=count, X, X0-X, X #= X0 + 1).
 update_goal(X0=avg(E), X, X0-X, so_auto_cp:update_avg(X0, E, X)).
-update_goal(X0=time, _, X0-X0, true).
+update_goal(X0=time(_), _, X0-X0, true).
 
 finalize_goal(X0=sum(_), _, X0-X0, true).
 finalize_goal(X0=min(_), X, X0-X, so_auto_cp:fin_minmax(X0, X)).
 finalize_goal(X0=max(_), X, X0-X, so_auto_cp:fin_minmax(X0, X)).
 finalize_goal(X0=count, _, X0-X0, true).
 finalize_goal(X0=avg(_), X, X0-X, so_auto_cp:fin_avg(X0, X)).
-finalize_goal(X0=time, _, X0-X0, true).
+finalize_goal(X0=time, X, X0-X, event_types:event_time(X0, X)).
 
 /*
     Noskip helpers
@@ -225,11 +202,11 @@ localize_auto(Auto0, Vs, F, Auto)
        }.
 
 merge_states(S1, S2, S)
-   :- S1 =.. [Sid1, LastMatched|Vars1],
-      S2 =.. [Sid2, LastMatched|Vars2],
+   :- S1 =.. [Sid1 | Vars1],
+      S2 =.. [Sid2 | Vars2],
       term_to_atom(a(Sid1, Sid2), Sid),
       ord_union(Vars1, Vars2, Vars),
-      S =.. [Sid, LastMatched | Vars].
+      S =.. [Sid | Vars].
 
 eps_states(Auto, States)
    :- maplist([skip(S, _, _), S]>>true, Auto.skips, States).
@@ -254,9 +231,8 @@ combine_lists(F, Ls1, Ls2, Out)
    :- make_pairs_(Ls1, Ls2, Pairs),
       convlist({F}/[X1-X2, Y]>>call(F, X1, X2, Y), Pairs, Out).
 
-merge_eps_(Dir, (eps(S0, P0, Sub, S1) :- G), S, (eps(Sm0, P, Sub, Sm1) :- G))
-   :- maplist(merge_states(Dir), [S0, S1], [S, S], [Sm0, Sm1]),
-      dir_tail_pos_(Dir, P0, P). 
+merge_eps_(Dir, (eps(S0, Sub, S1) :- G), S, (eps(Sm0, Sub, Sm1) :- G))
+   :- maplist(merge_states(Dir), [S0, S1], [S, S], [Sm0, Sm1]). 
 
 merge_states(left, S1, S2, S) :- merge_states(S1, S2, S).
 merge_states(right, S1, S2, S) :- merge_states(S2, S1, S).
@@ -276,13 +252,13 @@ merge_spec([Type0-Cond0|Spec0], Type-Cond, [Type0-Cond0|Spec])
 
 merge_trans_skip_(
    Dir,
-   (trans(V, Type, Pos0, Sub, S0, S1):-G), 
+   (trans(V, Type, pos(L), Sub, S0, S1):-G), 
    skip(S2, V1, L), 
-   (trans(V, Type, Pos, Sub, Sm0, Sm1):-C, G)
+   (trans(V, Type, pos([H|L]), Sub, Sm0, Sm1):-C, G)
 ) :-  maplist(merge_states(Dir), [S0, S1], [S2, S2], [Sm0, Sm1]),
       type_spec_cond(Type, L, C0),
       renumber_var(V1, V, C0, C),
-      dir_tail_pos_(Dir, Pos0, Pos).
+      (Dir=left -> H = p(1) ; H = p(2)). 
 
 type_spec_cond(_, [],  true).
 type_spec_cond(Type, [Type-C|_], C) :- !.
@@ -316,8 +292,8 @@ subst_(
 ) :- subst_state_(Sub, S1, S2).
 
 subst_(
-   (eps(S0, P, Sub, S1) :- G1),
-   (eps(S0, P, S2) :- G1)
+   (eps(S0, Sub, S1) :- G1),
+   (eps(S0, S2) :- G1)
 ) :- subst_state_(Sub, S1, S2).
 
 subst_auto(Auto0, Auto)

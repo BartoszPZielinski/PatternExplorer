@@ -24,7 +24,6 @@ start_spaces(N)
             atomic_list_concat(Spaces, SpacAtom)
         }, [SpacAtom].
     
-
 pattern_lines(Pattern, Vars, List)
     :- phrase(pattern_lines_(Pattern, Vars, 0), List).
 
@@ -32,16 +31,6 @@ pattern_lines_(event(Type, X), Vars, N)
     --> start_spaces(N), 
         {term_vars_atom(event(Type, X), Vars, Atom)}, 
         [Atom, '~n'-[]].
-
-pattern_lines_(any(X), Vars, N)
---> start_spaces(N), 
-    {term_vars_atom(any(X), Vars, Atom)}, 
-    [Atom, '~n'-[]].
-
-pattern_lines_(start(X), Vars, N)
---> start_spaces(N), 
-    {term_vars_atom(start(X), Vars, Atom)}, 
-    [Atom, '~n'-[]].
 
 pattern_lines_(iter(P), Vars, N)
     --> start_spaces(N), ['iter(~n'-[]], 
@@ -54,14 +43,6 @@ pattern_lines_(iter(P, List), Vars, N)
     start_spaces(N), 
     {term_vars_atom(List, Vars, Atom0)},
     [', ', Atom0, ')~n'-[]].
-
-pattern_lines_(noskip(P, Event, Cond), Vars, N)
---> start_spaces(N), ['noskip(~n'-[]], 
-    {N1 #= N + 1}, pattern_lines_(P, Vars, N1),
-    start_spaces(N), 
-    {term_vars_atom(Event, Vars, Atom0),
-     term_vars_atom(Cond, Vars, Atom1)},
-    [', ', Atom0, ', ', Atom1, ')~n'-[]].
 
 pattern_lines_(noskip(P, NP), Vars, N)
 --> start_spaces(N), ['noskip(~n'-[]], 
@@ -137,8 +118,6 @@ pattern_lis(Lis)
     :- get_patterns(Patterns),
        maplist(pattern_li, Patterns, Lis).
 
-
-
 example_html(
     example(Id, ex(Pid1, OutIn, Pid2), Vars),
     li([
@@ -188,30 +167,13 @@ examples_html(ExamplesLis)
     :- get_examples(Examples),
        maplist(example_html, Examples, ExamplesLis).
 
-path_mod_list_(X, X, []) :- var(X), !, fail.
-path_mod_list_(skip, skip, []) :- !.
-path_mod_list_(pos(L), pos(L), []) :- !.
-path_mod_list_(pos(L, L1), pos(L), L1).
-
-make_brs_([], []).
-make_brs_([A|As0], [br([]),A|As]) :- make_brs_(As0, As).
-
-term_vars_atom_(Vars, Short0, Short)
-    :- term_vars_atom(Short0, Vars, Short).
-
-pid_path_short(Pid, Path0, [Short|Shorts2])
+pid_path_short(Pid, Path, Short)
     :- pattern(Pid, select(_, _, Pattern), Vars),
-       path_mod_list_(Path0, Path, L),
        pattern_path_short(Pattern, Path, Short0),
-       maplist(pattern_path_short(Pattern), L, Shorts0),
-       term_vars_atom(Short0, Vars, Short),
-       maplist(term_vars_atom_(Vars), Shorts0, Shorts1),
-       make_brs_(Shorts1, Shorts2). 
+       term_vars_atom(Short0, Vars, Short). 
 
 pattern_path_short(_, skip, skip).
 pattern_path_short(event(T, X), pos([]), event(T, X)).
-pattern_path_short(any(X), pos([]), any(X)).
-pattern_path_short(start(X), pos([]), start(X)).
 pattern_path_short(P1 or _, pos([p(1) | L]), P1Short or '...')
     :- pattern_path_short(P1, pos(L), P1Short).
 pattern_path_short(_ or P2, pos([p(2) | L]), '...' or P2Short)
@@ -228,8 +190,6 @@ pattern_path_short(P1 and P2, pos([c(L1, L2)]), P1Short and P2Short)
     :- pattern_path_short(P1, pos(L1), P1Short),
        pattern_path_short(P2, pos(L2), P2Short).
 pattern_path_short(filter(P, _), pos(L), filter(PShort, '...'))
-    :- pattern_path_short(P, pos(L), PShort).
-pattern_path_short(noskip(P, _, _), pos(L), noskip(PShort, '...', '...'))
     :- pattern_path_short(P, pos(L), PShort).
 pattern_path_short(noskip(P, _), pos(L), noskip(PShort, '...'))
     :- pattern_path_short(P, pos(L), PShort).

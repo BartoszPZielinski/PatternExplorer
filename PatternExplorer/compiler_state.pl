@@ -5,7 +5,6 @@
         fresh_vars//1,
         current_vars//1,
         replace_vars//2,
-        last_matched//1,
         init_state/4,
         add_var//3,
         term_trans_goals//3,
@@ -20,30 +19,29 @@
 :- use_module(library(yall)).
 
 /*
-  States a(M, Vars, Id, LastMatched), where:
+  States a(M, Vars, Id), where:
      M - number used to create variables and states
      Vars - set of current variables,
      Id - identifier of the currently compiled pattern
-     LastMatched - variable storing last matched event
 */
 
 state(S), [S] --> [S].
 state(S0, S), [S] --> [S0].
 
 fresh_state(S, Vs)
-   --> state(a(M0, Vars, Id, LastMatched), 
-             a(M, Vars, Id, LastMatched)),
+   --> state(a(M0, Vars, Id), 
+             a(M, Vars, Id)),
        {
           M #= M0 + 1,
           term_to_atom(s(Id, M0), Sid),
-          S =.. [Sid, LastMatched | Vs]
+          S =.. [Sid | Vs]
        }.
 
 fresh_states(States, Vss, S0, S1) 
    :- foldl(fresh_state, States, Vss, S0, S1). 
 
 fresh_var('$VAR'(M0))
-   --> state(a(M0, Vars, Id, LastMatched), a(M, Vars, Id, LastMatched)),
+   --> state(a(M0, Vars, Id), a(M, Vars, Id)),
        {M #= M0 + 1}.
 
 fresh_vars(Vs, S0, S1) :- foldl(fresh_var, Vs, S0, S1).
@@ -52,23 +50,17 @@ args_fresh_vars(As, Vs, S0, S1)
    :- foldl([_, V, S0_, S1_]>>fresh_var(V, S0_, S1_), As, Vs, S0, S1).
 
 current_vars(Vars)
-      --> state(a(_, Vars, _, _)).
+      --> state(a(_, Vars, _)).
 
 replace_vars(Vars0, Vars)
-   --> state(a(M, Vars0, Id, LastMatched), 
-             a(M, Vars, Id, LastMatched)).
+   --> state(a(M, Vars0, Id), a(M, Vars, Id)).
 
 add_var(Vars0, V, Vars)
    --> replace_vars(Vars0, Vars),
        {ord_add_element(Vars0, V, Vars)}.
 
-last_matched(LastMatched)
-   --> state(a(_, _, _, LastMatched)).
 
-init_state(M0, Id, Vs0, [a(M, Vs, Id, LastMatched)])
-    :-  M #= M0 +1,
-        LastMatched = '$VAR'(M0),
-        list_to_ord_set(Vs0, Vs). 
+init_state(M, Id, Vs0, [a(M, Vs, Id)]) :- list_to_ord_set(Vs0, Vs). 
         
 /*
    Translate conditions. Extract references ref(var, field, value)
