@@ -79,13 +79,16 @@ comp_aut(P1 and P2, Auto)
        {
          merge_states(Auto1.initial, Auto2.initial, Initial),
          merge_states(F1, F2, Final),
-         eps_states(Auto1, States1),
-         eps_states2(Auto2, Auto1.trans, States20),
+         maplist([skip(S, _, _), S]>>true, Auto1.skips, States1),
+         maplist([skip(S, _, _), S]>>true, Auto2.skips, States20),
+         combine_lists(
+            [(trans(_, Type, _, _, _, _) :- _), 
+             (trans(_, Type, _, _, _, S) :- _), S]>>true,
+            Auto1.trans, Auto2.trans, States21),
          (
-               (ord_memberchk(Auto1.initial, States1) 
-                ; ord_memberchk(Auto2.initial, States20))
-               -> States2 = States20 
-               ; ord_union(States20, [Auto2.initial], States2)
+               (member(Auto1.initial, States1);member(Auto2.initial, States20))
+               -> append(States20, States21, States2) 
+               ; append([[Auto2.initial], States20, States21], States2)
          ),
          combine_lists(merge_eps_(left), Auto1.epses, States2, Es1),
          combine_lists(merge_eps_(right), Auto2.epses, States1, Es2),
@@ -183,11 +186,12 @@ assert_regular(Id, Select0)
         subst_auto(Auto0, Auto1),
         varnumbers(select(In0, Out0, Auto1), Select),
         Select = select(_, Out, Auto),
-        (
-         Id = 0 -> format(user_error, '~w~n', [Auto]) ; true 
-        ),
         maplist(assert_trans, Auto.trans),
         maplist(assert_trans, Auto.epses),
+        maplist(
+         [skip(S, V, L)]>>assertz(so_auto_cp:skip(S, X) :- skippable(X, V, L)),
+         Auto.skips
+        ),
         Auto.initial =.. [Sid|_],
         assertz((
            so_auto_cp:initial(Id, Input, Init) 

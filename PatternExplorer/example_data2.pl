@@ -194,9 +194,9 @@ pattern(200, select(inp, out,
 )).
 
 pattern(204, select(inp, out, 
-   (event(stop_enter, X) then event(sharp_turn, T)) 
-   and 
-   filter(event(stop_enter, Y), ref(Y, id) #= 1)
+   event(sharp_turn, Y) and
+   (event(stop_enter, X) or event(stop_leave, T)) 
+   %filter(event(stop_enter, Y), ref(Y, id) #= 1)
 )).
 
 pattern(205, select(inp, out, 

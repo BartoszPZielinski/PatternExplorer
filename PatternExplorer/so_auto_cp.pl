@@ -8,14 +8,11 @@
 ]).
 
 :- use_module(library(clpfd)).
-%:- use_module('skip_pattern_compiler.pl').
 :- use_module('event_types.pl').
 :- use_module('skippable.pl').
-%:- use_module('time_constr.pl').
 :- use_module(library(option)).
 
 :- dynamic initial/3, final/2, trans/4, eps/2, skip/2.
-
 
 move_ins_outs(Move, TList-RList, IList-OutList)
     :- maplist(move_inp_tail_rec_out(Move), IList, TList, RList, OutList).
@@ -24,7 +21,6 @@ move_inp_tail_rec_out(id, [I|Tail], Tail, Rec, [I|Rec]).
 move_inp_tail_rec_out(end, [skip|Tail], Tail, Rec, [skip, skip | Rec]).
 move_inp_tail_rec_out(mid, [I|Tail], [skip|Tail], Rec, [skip, I | Rec]).
  
-
 /*
     Some runtime helpers for computing aggregate functions min and max
  */
@@ -62,7 +58,6 @@ state_consume(S0, S1, A)
             C0 < MaxLen,
             C1 is C0 + 1,
             T0 #< T,
-            %S1 =..[_, _, T|_]
             event_time(A, T)
         }.
 
@@ -83,18 +78,15 @@ match_list(Id, L0, L, MTrees, Options)
       phrase(
          matcher(L0, L, MTreesIn-MTreesOut, MTree), 
          [a(I, [], 0, 0, MaxLen)], 
-         [a(S, _, T, _, _)]
+         [a(S, _, T, C, _)]
       ),
-      %C #= MaxLen,
+      C = MaxLen,
       attr_dom(time, T),
       final(S, Output),
       append(MTreesOut, [MTree], MTrees). 
 
 is_event_(A) :- nonvar(A), !.
 is_event_(A) :- get_attr(A, any_event, _).
-
-make_skips_(State, L0, L, MTree)
-   :- phrase(make_skips(L0, L, MTree), State, _).
 
 make_skips(L0, L, _) --> {var(L0), !, copy_term(L0, L)}.
 make_skips([], [], []) --> !.
@@ -128,13 +120,9 @@ advance(L0, L1, L2, L, MTrees0, MTrees, MTree0, MTree)
    --> {var(L0), !, L0 = [A | L1]},
        state_consume(S0, S1, A),
        {
-         format(user_error, 'Hello0 S0=~w, S1=~w, A=~w~n', [S0, S1, A]),
          trans(S0, A, Node, S1),
-         format(user_error, 'Hello1 S0=~w, S1=~w, A=~w~n', [S0, S1, A]),
          skip(S0, X),
-         format(user_error, 'Hello2 S0=~w, S1=~w, A=~w~n', [S0, S1, A]),
          move_ins_outs(end, MTrees0, MTrees),
-         format(user_error, 'Hello3 S0=~w, S1=~w, A=~w~n', [S0, S1, A]),
          L = [X, A | L2],
          MTree = [skip, Node | MTree0]
        }.

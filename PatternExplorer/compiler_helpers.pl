@@ -8,8 +8,6 @@
         mod_skip/5,
         append_iter/3,
         merge_states/3,
-        eps_states/2,
-        eps_states2/3,
         combine_lists/4,
         merge_eps_/4,
         merge_skips_/5,
@@ -208,18 +206,6 @@ merge_states(S1, S2, S)
       ord_union(Vars1, Vars2, Vars),
       S =.. [Sid | Vars].
 
-eps_states(Auto, States)
-   :- maplist([skip(S, _, _), S]>>true, Auto.skips, States).
-
-eps_states2(Auto, Ts, States)
-   :- eps_states(Auto, States0),
-      combine_lists(
-         [(trans(_, Type, _, _, _, _) :- _), 
-          (trans(_, Type, _, _, _, S) :- _), S]>>true,
-         Ts, Auto.trans, States1),
-      list_to_ord_set(States1, States2),
-      ord_union(States0, States2, States).
-
 make_pairs_(Ls1, Ls2, Pairs)
    :- maplist(
          {Ls1}/[X2, Sublist]>>(
@@ -253,10 +239,10 @@ merge_spec([Type0-Cond0|Spec0], Type-Cond, [Type0-Cond0|Spec])
 merge_trans_skip_(
    Dir,
    (trans(V, Type, pos(L), Sub, S0, S1):-G), 
-   skip(S2, V1, L), 
+   skip(S2, V1, Spec), 
    (trans(V, Type, pos([H|L]), Sub, Sm0, Sm1):-C, G)
 ) :-  maplist(merge_states(Dir), [S0, S1], [S2, S2], [Sm0, Sm1]),
-      type_spec_cond(Type, L, C0),
+      type_spec_cond(Type, Spec, C0),
       renumber_var(V1, V, C0, C),
       (Dir=left -> H = p(1) ; H = p(2)). 
 
