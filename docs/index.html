@@ -568,19 +568,14 @@ module which we use in tests was introduced relatively recently so a year-old in
 <div class="ulist">
 <ul>
 <li>
-<p><code>start(X)</code> bind <code>X</code> to a last matched event (or special sentinel event <code>start(0)</code> if <code>start(X)</code> occurs at the beginning of a pattern).</p>
-</li>
-<li>
-<p><code>event(T,X)</code> matches an event of type <code>T</code> and binds it to <code>X</code>.</p>
-</li>
-<li>
-<p><code>any(X)</code> recognizes event of any type  and binds it to a variable <code>X</code>.</p>
+<p><code>event(T,X)</code> matches an event of type <code>T</code> and binds it to variable <code>X</code>. There is a special event type <code>any</code> which denotes any type.</p>
 </li>
 <li>
 <p><code>iter(P)</code> matches repetitions of <code>P</code>.</p>
 </li>
 <li>
-<p><code>iter(P, f(h₁(E₁),…,hₐ(Eₐ)), X)</code> matches repetitions of <code>P</code>, and binds <code>X</code> to an event <code>f(v₁,…,vₐ)</code> where <code>v₁</code> is the result of aggregating with <code>hᵢ</code> the values of expression <code>Eᵢ</code>. It is assumed that event schema contains the definition of an event type of the form <code>f(a₁,…,aₐ)</code> so that we can later refer to <code>vᵢ</code> as <code>ref(X, aᵢ)</code>.</p>
+<p><code>iter(P, X₁=h₁(E₁),…,Xₐ=hₐ(Eₐ))</code> matches repetitions of <code>P</code>, and binds
+<code>X₁,…,Xₐ</code> to values <code>v₁,…,vₐ</code> where, respectively, <code>v₁</code> is the result of aggregating with <code>hᵢ</code> the values of expression <code>Eᵢ</code>.</p>
 </li>
 <li>
 <p><code>P₁ or P₂</code> matches events matched either by <code>P₁</code> or <code>P₂</code>.</p>
@@ -592,7 +587,27 @@ module which we use in tests was introduced relatively recently so a year-old in
 <p><code>filter(P, C)</code> matches <code>P</code> if it satisfies condition <code>C</code>.</p>
 </li>
 <li>
-<p><code>noskip(P, event(T, X), C)</code> matches string <code>S</code> matched by <code>P</code> if in <code>S</code> there does not occur an event of type <code>T</code> not explicitly matched in <code>P</code> which satisfies condition <code>C</code>.</p>
+<p><code>noskip(P, Q)</code> matches string <code>S</code> matched by <code>P</code> if the matching does not skip events matched by <code>Q</code>. <code>Q</code> must be a single-event pattern, i.e., it is one of</p>
+<div class="openblock">
+<div class="content">
+<div class="ulist">
+<ul>
+<li>
+<p><code>event(T, X)</code>,</p>
+</li>
+<li>
+<p><code>Q₁ or Q₂</code></p>
+</li>
+<li>
+<p><code>filter(P, C)</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>where <code>Q₁</code>, <code>Q₂</code> and <code>Q</code> are single-event patterns.</p>
+</div>
+</div>
+</div>
 </li>
 </ul>
 </div>
@@ -603,7 +618,7 @@ module which we use in tests was introduced relatively recently so a year-old in
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-Currently we implement standard aggregate functions <code>sum(E)</code>, <code>min(E)</code>, <code>max(E)</code>, <code>avg(E)</code>, <code>count(*)</code>.
+Currently we implement standard aggregate functions <code>sum(E)</code>, <code>min(E)</code>, <code>max(E)</code>, <code>avg(E)</code>, <code>count</code>. We also implement <code>time</code> which gives a maximal timestamp of events matched in an iteration.
 </td>
 </tr>
 </table>
@@ -667,19 +682,13 @@ Unfortunately, SWI Prolog seeing dot assumes its left operand must be a dict. Th
 <div class="ulist">
 <ul>
 <li>
-<p><code>start(X)</code> binds <code>X</code> (to the last matched event)</p>
-</li>
-<li>
 <p><code>event(T, X)</code> binds <code>X</code> (to the matched event of type <code>T</code>)</p>
-</li>
-<li>
-<p><code>any(X)</code> binds <code>X</code> (to the matched event of any type)</p>
 </li>
 <li>
 <p><code>iter(P)</code> binds nothing.</p>
 </li>
 <li>
-<p><code>iter(P, f(h₁(E₁),…,hₐ(Eₐ)), X)</code> binds only <code>X</code></p>
+<p><code>iter(P, X₁=h₁(E₁),…,Xₐ=hₐ(Eₐ))</code> binds only <code>X₁,…,Xₐ</code>.</p>
 </li>
 <li>
 <p><code>P₁ or P₂</code> binds variables bound by both <code>P₁</code> and <code>P₂</code>. Since only one of the two alternatives is actually matched there is no possibility of conflict</p>
@@ -688,7 +697,7 @@ Unfortunately, SWI Prolog seeing dot assumes its left operand must be a dict. Th
 <p><code>P₁ then P₂</code> binds variables bound by either <code>P₁</code> or <code>P₂</code>. Bindings from <code>P₂</code> shadow bindings from <code>P₁</code></p>
 </li>
 <li>
-<p><code>filter(P, C)</code> and <code>noskip(P, Event(T,X), C)</code> bind variables bound by <code>P</code> (in particular <code>X</code> is not visible outside).</p>
+<p><code>filter(P, C)</code> and <code>noskip(P, Q)</code> bind variables bound by <code>P</code> (in particular, variables bound by <code>Q</code> are not visible outside).</p>
 </li>
 </ul>
 </div>
@@ -704,7 +713,7 @@ Unfortunately, SWI Prolog seeing dot assumes its left operand must be a dict. Th
 <p>For <code>iter(P)</code> scope of variables is the same as in <code>P</code></p>
 </li>
 <li>
-<p>Consider now <code>iter(P, f(h₁(E₁),…,hₐ(Eₐ)), X)</code>. <code>X</code> is not visible in <code>P</code> or expressions <code>Eᵢ</code>. Expressions <code>Eᵢ</code> are in the scope of variables bound by <code>P</code> which take precedence (shadow) external binding of identically named variables.</p>
+<p>Consider now <code>iter(P, X₁=h₁(E₁),…,Xₐ=hₐ(Eₐ))</code>. <code>Xᵢ&#8217;s' are not visible in `P</code> or expressions <code>Eᵢ</code>. Expressions <code>Eᵢ</code> are in the scope of variables bound by <code>P</code> which take precedence (shadow) external binding of identically named variables.</p>
 </li>
 <li>
 <p>In case of <code>P₁ or P₂</code>  neither bindings provided by <code>P₁</code> are visible in <code>P₂</code> nor bindings provided by <code>P₂</code> are visible in <code>P₁</code>.</p>
@@ -716,7 +725,7 @@ Unfortunately, SWI Prolog seeing dot assumes its left operand must be a dict. Th
 <p>In case of <code>filter(P, C)</code> condition <code>C</code> is in the scope of variables bound by <code>P</code> and bindings provided by <code>P</code> take precedence (shadow) external ones.</p>
 </li>
 <li>
-<p>In case of <code>noskip(P, Event(T,X), C)</code> condition <code>C</code> is in the scope of <code>X</code> but not of variables bound by <code>P</code>.</p>
+<p>In case of <code>noskip(P, Q)</code> conditions in <code>Q</code> are not in the scope of <code>P</code> (nor vice-versa).</p>
 </li>
 </ul>
 </div>
@@ -782,7 +791,7 @@ integers or symbols <code>inf</code> or <code>sup</code>. Thus e.g.,</p>
 the value of attribute <code>delta_schedule</code> will be between 0 and 200.</p>
 </div>
 <div class="paragraph">
-<p>The second term defines event schema (it is important that all events appearing in the event stream, i.e., all events except for aggregation events, have the attribute <code>time</code>). The form of this term is as follows:</p>
+<p>The second term defines event schema (it is important that all events have the attribute <code>time</code>). The form of this term is as follows:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -808,8 +817,7 @@ the value of attribute <code>delta_schedule</code> will be between 0 and 200.</p
     driver_in(id, drv_id, time),
     driver_out(id, drv_id, time),
     velocity(id, max, min, avg, start_time, time),
-    location(id, location_id, time),
-    agg(cnt)
+    location(id, location_id, time)
 ]).</code></pre>
 </div>
 </div>
@@ -1041,6 +1049,18 @@ example(21, ex(12, inp(driver_in(10, _, _)))).</code></pre>
     <video controls src="PatternExplorer4.mp4"
     style="max-width: 100%"></video>
 </div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The video may contain some outdated information pertaining to the previous versios of the tool. However, the basic UI haven&#8217;t changed.
+</td>
+</tr>
+</table>
+</div>
 </div>
 </div>
 </div>
@@ -1065,7 +1085,7 @@ example(21, ex(12, inp(driver_in(10, _, _)))).</code></pre>
 <h4 id="_any_event_pl">any_event.pl</h4>
 <div class="paragraph">
 <p>This module defines  functor <code>any_event/1</code> used in the implementation of
-pattern <code>any(X)</code>. The call <code>any_event(X)</code> always succeeds, but if <code>X</code> is a variable it ataches to it a constraint <code>any_event</code> which just serves as a marker. Variables thus marked are treated as single (unspecified) events in the narrowed event stream and not  subsequences of events.</p>
+pattern <code>event(any, X)</code>. The call <code>any_event(X)</code> always succeeds, but if <code>X</code> is a variable it ataches to it a constraint <code>any_event</code> which just serves as a marker. Variables thus marked are treated as single (unspecified) events in the narrowed event stream and not  subsequences of events.</p>
 </div>
 </div>
 <div class="sect3">
@@ -1077,7 +1097,26 @@ pattern <code>any(X)</code>. The call <code>any_event(X)</code> always succeeds,
 <div class="sect3">
 <h4 id="_event_types_pl">event_types.pl</h4>
 <div class="paragraph">
-<p>The module event_types defines two important functors: <code>def_event_type/1</code> and <code>def_event_types/1</code> which accept as a single argument either, respectively, a single declaration of an event type or a list of such declarations. The functors assert associated definitions of <code>ref/3</code> and <code>event_type/2</code> functors (also exported by the module). The role of the generated functors is explained below. The module also defines functors event_time/2 (returning timestamp of an event), and <code>update_time/4</code> which is used by generated automaton and not by the user. Finally, the module also defines the functors <code>def_attr_domains/1</code> and <code>attr_dom/2</code> associated with describing domains of attributes of events which will be described below.</p>
+<p>The module event_types defines the following functors:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>def_event_type/1</code> and <code>def_event_types/1</code> which accept as a single argument either, respectively, a single declaration of an event type or a list of such declarations. The functors assert associated definitions of <code>ref/3</code>, <code>event_type/2</code> and <code>attr_type/2</code> functors (also exported by the module). The role of the generated functors is explained below.</p>
+</li>
+<li>
+<p><code>def_attr_domains/1</code> and <code>attr_dom/2</code> which describe domains of attributes of events (also to be explained below).</p>
+</li>
+<li>
+<p><code>event_time/2</code>  which returns/sets timestamp of a given event (its definition is somewhat nontrivial because it must not narrow the type of event when passed a variable as first argument).</p>
+</li>
+<li>
+<p><code>attr_types/2</code> which binds to its second argument the types of events which have attribute passed in the first argument.</p>
+</li>
+<li>
+<p><code>update_time/4</code>, <code>use_var/3</code>, <code>branch_types/3</code>, <code>list_unique/2</code> which are helper predicates used by the generated automaton as well as the syntax checker.</p>
+</li>
+</ul>
 </div>
 <div class="paragraph">
 <p>Events are represented as Prolog terms of the form</p>
@@ -1163,7 +1202,7 @@ The call <code>attr_dom(a, X)</code> applies the domain constraint associated to
 <div class="sect3">
 <h4 id="_skip_pattern_syntax_pl">skip_pattern_syntax.pl</h4>
 <div class="paragraph">
-<p>Module skip_pattern_syntax exports, aside from binary operators <code>or</code>, <code>and</code>, and <code>then</code>  which are used in the patterns, also some predicates which check the properties of patterns related to variables and can convert patterns into satisfying <strong>unique variable property</strong>. The exported predicates are as follows:</p>
+<p>Importantly, module <code>skip_pattern_syntax</code> exports  binary operators <code>or</code>, <code>and</code>, and <code>then</code>  which are used in the patterns. It also exprts some predicates which check the properties of patterns related to variables and can convert patterns into satisfying <strong>unique variable property</strong>. The exported predicates are as follows:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -1171,7 +1210,29 @@ The call <code>attr_dom(a, X)</code> applies the domain constraint associated to
 <p><code>pattern_binds/2</code>: Given a pattern <code>P</code> a goal <code>pattern_binds(P, V)</code> binds <code>V</code> to the (ordered) list of all variables bound by <code>P</code></p>
 </li>
 <li>
-<p><code>closed/2</code>: Given a pattern <code>P</code> a goal <code>closed(P, V)</code> is satisfied iff <code>P</code> is closed and <code>V</code> is the ordered list of variables bound by <code>P</code> (i.e., the same set as <code>pattern_binds/2</code> binds).</p>
+<p><code>closed/2</code>: Given a pattern <code>P</code> a goal <code>closed(P, Ts)</code> is satisfied iff <code>P</code> is closed and all the variables are used consistently with the values they are bound to (i.e., if we refer to the attribute <code>a</code> of <code>X</code> then <code>X</code> must be bound to an event which has attribute <code>a</code>). <code>Ts</code> is bound to the map from variables bound by <code>P</code> to types. A variable can have the following typing:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>undefined</strong> - it was not yet either used or bound in the pattern,
+so no type can be inferred. Useful only for input variables.</p>
+</li>
+<li>
+<p><strong>scalar</strong> - a variable is used as scalar</p>
+</li>
+<li>
+<p><strong>any([T₁, T₂, …, Tₙ])</strong> a variable use must be consistent with one of types
+<strong>T₁, T₂, …, Tₙ</strong>. List of types is really an ord_set.</p>
+</li>
+<li>
+<p><strong>all([T₁, T₂, …, Tₙ])</strong> a variable use must be consistent with all of the
+types <strong>T₁, T₂, …, Tₙ</strong>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><code>closed_select/2</code> and <code>closed_select/3</code>: The goal <code>closed_select(select(P, In, Out), TIs, TOs)</code> is satisfied when <code>P</code> is closed and all the variables can be consistently assigned typings (taking into account typing of variables in <code>In</code> given by a corresponding list of typings <code>TIs</code>) and <code>TOs</code> is the corresponding list of typings for respective variables in <code>Out</code>. The goal <code>closed_select(S, TOs)</code> is equivalent to <code>closed_select(S, [undefined, undefined, …], TOs)</code>.</p>
 </li>
 <li>
 <p><code>is_unique_pattern/1</code>: The goal <code>is_unique_pattern(P)</code> is satisfied iff a pattern <code>P</code> has a <strong>unique variable property</strong>, i.e., no variables are shadowed or unnecessarily reused.</p>
@@ -1179,10 +1240,13 @@ The call <code>attr_dom(a, X)</code> applies the domain constraint associated to
 <li>
 <p><code>make_pattern_unique/2</code>: Given a pattern <code>P0</code> the goal <code>make_pattern_unique(P0, P)</code> binds a pattern to a variable <code>P</code> which is  equivalent to P0, but has fresh variables and satisfies the <strong>unique variable property</strong>.</p>
 </li>
+<li>
+<p><code>aggr_vars/3</code>: A goal <code>aggr_vars(L, Xs, Es)</code> is satisfied when <code>L</code> is a list of terms of the form <code>X=E</code> and <code>Xs</code> and <code>Es</code> are the lists of corresponding `X&#8217;s and `E&#8217;s.</p>
+</li>
 </ul>
 </div>
 <div class="paragraph">
-<p>Note that while predicates <code>pattern_binds/2</code>, <code>closed/2</code>, and <code>is_unique_pattern/1</code> do not make any assumptions about how the event variables are represented in the pattern passed as an argument (actual Prolog variables or any other terms, it does not matter), but <code>make_pattern_unique/2</code> requires for correct execution that the pattern passed as a first argument has event variables represented by actual Prolog variables (and the resulting pattern bound to the second argument represents event variables as Prolog variables as well). This is not checked in the goal, so it may lead to difficult to find errors.</p>
+<p>Note that while predicates <code>pattern_binds/2</code>, and <code>is_unique_pattern/1</code> do not make any assumptions about how the event variables are represented in the pattern passed as an argument (actual Prolog variables or any other terms, it does not matter), but <code>closed_select/2</code>, <code>closed_select/3</code>, and <code>make_pattern_unique/2</code> requires for correct execution that the pattern passed as a first argument has event variables represented by actual Prolog variables (and the resulting pattern bound to the second argument represents event variables as Prolog variables as well). This is not checked in the goal, so it may lead to difficult to find errors. Functor <code>closed/2</code> requires representation of a pattern with numbered variables.</p>
 </div>
 </div>
 <div class="sect3">
@@ -1691,7 +1755,7 @@ The successful run should generate file <code>raw_mesurements.csv</code>.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2022-06-07 12:39:28 +0200
+Last updated 2022-12-27 08:24:33 +0100
 </div>
 </div>
 </body>

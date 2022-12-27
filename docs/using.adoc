@@ -36,7 +36,7 @@ declares that the value of attribute `time` will be between 0 and 300 and
 the value of attribute `delta_schedule` will be between 0 and 200.
 
 
-The second term defines event schema (it is important that all events appearing in the event stream, i.e., all events except for aggregation events, have the attribute `time`). The form of this term is as follows:
+The second term defines event schema (it is important that all events have the attribute `time`). The form of this term is as follows:
 
 [source, prolog]
 ----
@@ -61,8 +61,7 @@ def_event_types([
     driver_in(id, drv_id, time),
     driver_out(id, drv_id, time),
     velocity(id, max, min, avg, start_time, time),
-    location(id, location_id, time),
-    agg(cnt)
+    location(id, location_id, time)
 ]).
 ----
 
@@ -221,3 +220,5 @@ You can see a better quality version link:http://ki.wfi.uni.lodz.pl/media/Patter
     style="max-width: 100%"></video>
 </div>
 ++++
+
+NOTE: The video may contain some outdated information pertaining to the previous versios of the tool. However, the basic UI haven't changed.

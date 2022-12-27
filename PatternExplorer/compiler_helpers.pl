@@ -156,14 +156,14 @@ init_expr(X=min(_), X-nothing).
 init_expr(X=max(_), X-nothing).
 init_expr(X=count, X-1).
 init_expr(X=avg(_), X-a(0,0)).
-init_expr(X=time(_), X-0).
+init_expr(X=time, X-0).
 
 update_goal(X0=sum(E), X, X0-X, X #= X0 + E).
 update_goal(X0=min(E), X, X0-X, so_auto_cp:ext_min(X0, E, X)).
 update_goal(X0=max(E), X, X0-X, so_auto_cp:ext_max(X0, E, X)).
 update_goal(X0=count, X, X0-X, X #= X0 + 1).
 update_goal(X0=avg(E), X, X0-X, so_auto_cp:update_avg(X0, E, X)).
-update_goal(X0=time(_), _, X0-X0, true).
+update_goal(X0=time, _, X0-X0, true).
 
 finalize_goal(X0=sum(_), _, X0-X0, true).
 finalize_goal(X0=min(_), X, X0-X, so_auto_cp:fin_minmax(X0, X)).

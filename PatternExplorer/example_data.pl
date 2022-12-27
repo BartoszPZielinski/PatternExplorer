@@ -26,20 +26,25 @@ def_event_types([
     location(id, location_id, time)
 ]).
 
+
+pattern(0, select(in, out, event(location, X))).
+
 pattern(-1,  select(in, out, 
 filter(event(location, X), ref(X, location_id) #> 10) 
 )).
-pattern(0, select(in, out, event(location, X))).
+
 pattern(1, select(in, out, 
         filter(event(location, X), ref(X, location_id) #= 10)
+      then event(velocity, Y)
    )).
 pattern(2, select(in, out, 
-        filter(event(location, X), ref(X, location_id) #= 10) or event(velocity, X)
+        filter(event(location, X), ref(X, location_id) #= 10) 
+            or filter(event(location, X), ref(X, location_id)#=20)
    )).
 pattern(3, select(in, out, 
         filter(
-           filter(event(location, X), ref(X, location_id) #= 10) 
-                 or event(velocity, X),
+           event(velocity, X) or
+           event(location, X),
            ref(X, time) #> 10
         )
    )).
@@ -64,14 +69,14 @@ pattern(5, select(in, out,
 
 pattern(6, select(in, out, 
     event(driver_in, X) then noskip(
-             event(abrupt_accel, Y), event(abrupt_accel, Z),
-             ref(X, id) = ref(Z, id) 
+             event(abrupt_accel, Y), 
+             filter(event(abrupt_accel, Z), ref(X, id) #= ref(Z, id)) 
        )
 )).
 
 pattern(7, select(in, out, 
-   iter(event(driver_in, X))
-)).
+   iter(filter(event(driver_out, Y), ref(Y, id)#=1))
+)). 
 
 pattern(8, select(in, out, 
    filter(iter(event(driver_in, X), [Count=count]), 
@@ -92,11 +97,9 @@ filter(event(stop_enter, Se), ref(Se, delta_schedule) #>= 120) then noskip(
          event(stop_leave, Sl), 
          ref(Sl, id) #= ref(Se, id) #/\ ref(Se, stop_id) #= ref(Sl, stop_id)
       ),
-      event(stop_leave, L),
-      ref(L, id) #= ref(Se, id)
+      filter(event(stop_leave, L), ref(L, id) #= ref(Se, id))
    ), 
-   event(driver_in, Di),
-   ref(Di, id) #= ref(Se, id)
+   filter(event(driver_in, Di), ref(Di, id) #= ref(Se, id))
 ) then noskip(
       filter(
          iter(
@@ -111,8 +114,7 @@ filter(event(stop_enter, Se), ref(Se, delta_schedule) #>= 120) then noskip(
       ) then filter(
             event(stop_enter, K), ref(K, id) #= ref(Se, id)
       ),
-      event(stop_enter, T),
-      ref(T, id) #= ref(Se, id)
+      filter(event(stop_enter, T), ref(T, id) #= ref(Se, id))
 )
 )).
 
@@ -131,27 +133,18 @@ pattern(12, select(inp(X), out,
    )
 )).
 
-pattern(20, select(inp, out, 
-   event(driver_in, X) then 
-   start(Y) then 
-   filter(event(driver_out, Z), ref(Y, id) #= ref(Z, id)) 
-)).
-
-pattern(21, select(inp, out, 
-   event(driver_in, X) then start(Y) 
-)).
-
 pattern(31, select(inp, out, 
     noskip(
        filter(event(driver_in, X), ref(X, id) #= 1),
-       event(driver_out, Y), ref(Y, id) #= 1)
+       filter(event(driver_out, Y), ref(Y, id) #= 1)
+    )
 )).
 
 pattern(32, select(inp, out, 
     filter(event(driver_out, Z), ref(Z, id) #= 1)
 )).
 
-pattern(100, select(inp(Lambda), out(D, M),
+pattern(100, select(inp(Lambda), out(D, Time),
     event(driver_in, D) then
     filter(
       iter(
@@ -159,28 +152,28 @@ pattern(100, select(inp(Lambda), out(D, M),
              filter(
                 event(abrupt_decel, AD),
                 ref(AD, id) #= ref(D, id)
-             ), event(driver_out, D2), ref(D2, drv_id) #= ref(D, drv_id)
-         ), [Count=count]
+             ), filter(event(driver_out, D2), ref(D2, drv_id) #= ref(D, drv_id))
+         ), [Count=count, Time=time]
       ),
       Count #= Lambda 
-    ) then start(M)
+    ) 
 )).
 
-pattern(101, select(inp(D, M, Lambda), out, 
+pattern(101, select(inp(D, Time, Lambda), out, 
      filter(
          iter(
             filter(
                event(sharp_turn, S),
                ref(S, id) #= ref(D, id) #/\
                ref(S, time) #> ref(D, time) #/\ 
-               ref(S, time) #< ref(M, time)
+               ref(S, time) #< Time
             ), [Count=count]
          ),
          Count #= Lambda
       )
 )).
 
-pattern(102, select(inp(D, M, Lambda), out, 
+pattern(102, select(inp(D, Time, Lambda), out, 
      filter(event(driver_in, D1), 
           ref(D1, time) #= ref(D, time)) then 
      filter(
@@ -188,47 +181,24 @@ pattern(102, select(inp(D, M, Lambda), out,
             filter(
                event(sharp_turn, S),
                ref(S, id) #= ref(D, id) #/\
-               ref(S, time) #< ref(M, time)
+               ref(S, time) #< Time
             ), [Count=count]
          ),
          Count #= Lambda 
       )
 )).
 
-pattern(200, select(inp, out, event(driver_in, X) and event(sharp_turn, S))).
+pattern(200, select(inp, out, 
+   
+   event(driver_in, X) and 
+   filter(event(sharp_turn, S), ref(S, id) #=1)
 
-pattern(201, select(inp, out, 
-   filter(event(stop_enter, X), ref(X, id) #= 1) then (
-      filter(
-         start(Y) then event(driver_in, D),
-         ref(D, id) #= ref(Y, id)   
-      ) and filter(event(sharp_turn, S), ref(S, id) #=2) 
-   )
-)).
-
-
-pattern(202, select(inp, out, 
-   (
-      filter(event(stop_enter, X), ref(X, id) #= 5)
-      and 
-      filter(event(stop_leave, Y), ref(Y, id) #=10)
-   ) then filter(
-      start(Z) then event(sharp_turn, T), 
-      ref(Z, id) #= ref(T, id)
-   )   
-)).
-
-pattern(203, select(inp, out, 
-   (iter(event(stop_enter, X)) and event(driver_in, Y)) then filter(
-      start(Z) then event(sharp_turn, T), 
-      ref(Z, id) #= ref(T, id)
-   )   
 )).
 
 pattern(204, select(inp, out, 
-   (event(stop_enter, X) then event(sharp_turn, T)) 
-   and 
-   filter(event(stop_enter, Y), ref(Y, id) #= 1)
+   event(sharp_turn, Y) and
+   (event(stop_enter, X) or event(stop_leave, T)) 
+   %filter(event(stop_enter, Y), ref(Y, id) #= 1)
 )).
 
 pattern(205, select(inp, out, 
@@ -275,15 +245,10 @@ example(10, ex(10)).
 example(11, ex(8)).
 example(20, ex(5, out-in, 0)).
 example(21, ex(12, inp(driver_in(10, _, _)))).
-example(30, ex(20)).
-example(31, ex(21)).
 example(32, ex(31, out-inp, 32)).
-example(100, ex(100, inp(3)-out(D, M)-inp(D, M, 3), 101)).
-example(101, ex(100, inp(3)-out(D, M)-inp(D, M, 3), 102)).
+example(100, ex(100, inp(10)-out(D, Time)-inp(D, Time, 10), 101)).
+example(101, ex(100, inp(3)-out(D, Time)-inp(D, Time, 3), 102)).
 example(200, ex(200)).
-example(201, ex(201)).
-example(202, ex(202)).
-example(203, ex(203)).
 example(204, ex(204)).
 example(205, ex(205)).
 example(206, ex(206)).

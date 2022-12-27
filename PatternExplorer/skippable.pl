@@ -5,6 +5,9 @@
 :- use_module('event_types.pl').
 :- use_module(library(clpfd)).
 
+skippable(Event, V, Pairs)
+    :- var(Pairs), !, 
+       get_attr(Event, skippable, skip(V, Pairs)).
 
 skippable(Event, V,  Pairs)
     :- put_attr(Y, skippable, skip(V, Pairs)),
@@ -17,7 +20,7 @@ attr_unify_hook(skip(VX, PairsX), Y) :-
     put_attr(Y, skippable, skip(VY, Pairs))
 ;   var(Y)
 ->  put_attr( Y, skippable, skip(VX, PairsX))
-;   event_type(Y, Type),
+;   event_type(Y, Type), dif(Type, any),
     VX = Y,
     verify_pairs(PairsX, Type)
 ).

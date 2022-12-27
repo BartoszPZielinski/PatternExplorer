@@ -2,17 +2,24 @@
 
 The pattern language uses the following constructs:
 
-* `start(X)` bind `X` to a last matched event (or special sentinel event `start(0)` if `start(X)` occurs at the beginning of a pattern).
-* `event(T,X)` matches an event of type `T` and binds it to `X`. 
-* `any(X)` recognizes event of any type  and binds it to a variable `X`.
+* `event(T,X)` matches an event of type `T` and binds it to variable `X`. There is a special event type `any` which denotes any type.
 * `iter(P)` matches repetitions of `P`.
-* `iter(P, f(h₁(E₁),…,hₐ(Eₐ)), X)` matches repetitions of `P`, and binds `X` to an event `f(v₁,…,vₐ)` where `v₁` is the result of aggregating with `hᵢ` the values of expression `Eᵢ`. It is assumed that event schema contains the definition of an event type of the form `f(a₁,…,aₐ)` so that we can later refer to `vᵢ` as `ref(X, aᵢ)`.
+* `iter(P, X₁=h₁(E₁),…,Xₐ=hₐ(Eₐ))` matches repetitions of `P`, and binds 
+`X₁,…,Xₐ` to values `v₁,…,vₐ` where, respectively, `v₁` is the result of aggregating with `hᵢ` the values of expression `Eᵢ`. 
 * `P₁ or P₂` matches events matched either by `P₁` or `P₂`.
 * `P₁ then P₂` matches `P₁` followed by `P₁`.
 * `filter(P, C)` matches `P` if it satisfies condition `C`.
-* `noskip(P, event(T, X), C)` matches string `S` matched by `P` if in `S` there does not occur an event of type `T` not explicitly matched in `P` which satisfies condition `C`.
+* `noskip(P, Q)` matches string `S` matched by `P` if the matching does not skip events matched by `Q`. `Q` must be a single-event pattern, i.e., it is one of
++
+--
+* `event(T, X)`,
+* `Q₁ or Q₂`
+* `filter(P, C)`
 
-NOTE: Currently we implement standard aggregate functions `sum(E)`, `min(E)`, `max(E)`, `avg(E)`, `count(*)`.
+where `Q₁`, `Q₂` and `Q` are single-event patterns.
+--
+
+NOTE: Currently we implement standard aggregate functions `sum(E)`, `min(E)`, `max(E)`, `avg(E)`, `count`. We also implement `time` which gives a maximal timestamp of events matched in an iteration.
 
 NOTE: The only numerical values allowed are integers and all conditions must use predicates from https://www.swi-prolog.org/man/clpfd.html[`library(clpfd)`].
 
@@ -31,24 +38,22 @@ A pattern is passed to the compiler always as a full pattern, i.e., as a term of
 
 It remains to describe the binding structure of patterns. First we describe (by recursion on the structure of the pattern) the set of variables bound by a pattern:
 
-* `start(X)` binds `X` (to the last matched event)
 * `event(T, X)` binds `X` (to the matched event of type `T`)
-* `any(X)` binds `X` (to the matched event of any type)
 * `iter(P)` binds nothing.
-* `iter(P, f(h₁(E₁),…,hₐ(Eₐ)), X)` binds only `X`
+* `iter(P, X₁=h₁(E₁),…,Xₐ=hₐ(Eₐ))` binds only `X₁,…,Xₐ`.
 * `P₁ or P₂` binds variables bound by both `P₁` and `P₂`. Since only one of the two alternatives is actually matched there is no possibility of conflict
 * `P₁ then P₂` binds variables bound by either `P₁` or `P₂`. Bindings from `P₂` shadow bindings from `P₁`
-* `filter(P, C)` and `noskip(P, Event(T,X), C)` bind variables bound by `P` (in particular `X` is not visible outside).
+* `filter(P, C)` and `noskip(P, Q)` bind variables bound by `P` (in particular, variables bound by `Q` are not visible outside).
 
 Let us now describe shadowing and (internal) scope of variable bindings. Variables are read in conditions and in aggregation expressions. We have
 
 * `event(T,X)` cannot contain conditions or aggregation expressions so there is nothing to describe here.
 * For `iter(P)` scope of variables is the same as in `P`
-* Consider now `iter(P, f(h₁(E₁),…,hₐ(Eₐ)), X)`. `X` is not visible in `P` or expressions `Eᵢ`. Expressions `Eᵢ` are in the scope of variables bound by `P` which take precedence (shadow) external binding of identically named variables.
+* Consider now `iter(P, X₁=h₁(E₁),…,Xₐ=hₐ(Eₐ))`. `Xᵢ`'s' are not visible in `P` or expressions `Eᵢ`. Expressions `Eᵢ` are in the scope of variables bound by `P` which take precedence (shadow) external binding of identically named variables.
 * In case of `P₁ or P₂`  neither bindings provided by `P₁` are visible in `P₂` nor bindings provided by `P₂` are visible in `P₁`.
 * In case of `P₁ then P₂` bindings provided by `P₂` are not visible in `P₁`. However, bindings provided by `P₁` are visible in `P₂`. In case of conflict inside `P₂` variables bound inside `P₂` shadow those bound by `P₁`.
 * In case of `filter(P, C)` condition `C` is in the scope of variables bound by `P` and bindings provided by `P` take precedence (shadow) external ones.
-* In case of `noskip(P, Event(T,X), C)` condition `C` is in the scope of `X` but not of variables bound by `P`.
+* In case of `noskip(P, Q)` conditions in `Q` are not in the scope of `P` (nor vice-versa).
 
 The compilation function requires that there is no shadowing of variables. Naively, it would seem to be sufficient to forbid binding the same variable in two distinct places in the same pattern. However, since the alternative (`P₁ or P₂`) binds variables bound in both subpatterns we have to permit repetition of bindings in alternative subpatterns if they are not shadowed. A pattern which contains only minimal repetition of bindings (in the alternative subpatterns) is said to satisfy the unique variable property
 

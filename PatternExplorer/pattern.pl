@@ -38,29 +38,36 @@ compile_pattern(I)
      assert_regular(I, Pattern),
      format('Pattern ~w compiled ~n', [I]).
 
-nums_to_(Min, Min, Max) :- Min < Max.
-nums_to_(N, Min, Max) 
-    :- Min < Max, nums_to_(N0, Max), N is N0 + 1, (N < Max ; (N>=Max, !)).
-nums_to_(N, Max) :- nums_to_(N, 1, Max).
+%nums_to_(Min, Min, Max) :- Min < Max.
+%nums_to_(N, Min, Max) 
+%    :- Min < Max, nums_to_(N0, Max), N is N0 + 1, (N < Max ; (N>=Max, !)).
+%nums_to_(N, Max) :- nums_to_(N, 1, Max).
+
+nums_to_(1, Max) :- 1 =< Max.
+nums_to_(N, Max) 
+    :- 1 < Max, nums_to_(N0, Max), N is N0 + 1, (N < Max ; (N>=Max, !)).
 
 %
 %nums_to_(N, N).
 
 run(ExId, MaxLen, L-MTrees)
     :- example(ExId, ex(Pid1, In1-Out1-In2, Pid2), _),
-        nums_to_(Len1, 1, MaxLen),
+        nums_to_(Len1, MaxLen),
+        write(user_error, 'Len1='), writeln(user_error, Len1),
         match_list(Pid1, _, L0, MTrees0, [input(In1), output(Out1),max_depth(Len1)]),
-        nums_to_(Len2, Len1, MaxLen),
+        nums_to_(Len2, MaxLen),
+        write(user_error, 'Len2='), writeln(user_error, Len2),
         match_list(Pid2, L0, L, MTrees, 
-            [input(In2), inmtrees(MTrees0), max_depth(Len2)]).
+            [input(In2), inmtrees(MTrees0), max_depth(Len2)]),
+        writeln(user_error, 'success'). 
 
 run(ExId, MaxLen, L-MTrees)
     :- example(ExId, ex(Pid1, Out-In, Pid2), _),
-       nums_to_(Len1, 1, MaxLen),
+       nums_to_(Len1, MaxLen),
        match_list(Pid1, _, L0, MTrees0, [output(Out),max_depth(Len1)]),
-       nums_to_(Len2, Len1, MaxLen),
+       nums_to_(Len2, MaxLen),
        match_list(Pid2, L0, L, MTrees, 
-           [input(In), inmtrees(MTrees0), max_depth(Len2)]).
+           [input(In), inmtrees(MTrees0), max_depth(Len2)]). 
 
 run(ExId, MaxLen, L-MTrees)
     :- example(ExId, ex(Pid, In), _),
