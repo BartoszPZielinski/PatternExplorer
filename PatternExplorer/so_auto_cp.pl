@@ -131,17 +131,6 @@ advance([A | L1], L1, L2, L, MTrees0, MTrees, MTree0, MTree)
 advance([A | L0], L1, L2, L, MTrees0, MTrees, MTree0, MTree)
    --> take_non_event(A, L0, L1, L2, L, MTrees0, MTrees, MTree0, MTree).
 
-/*
-advance([A | L0], L1, L2, L, MTrees0, MTrees, MTree0, MTree)
-   --> take_item(A, L0, L1, L2, L, MTrees0, MTrees, MTree0, MTree). 
-
-take_item(A, L1, L1, L2, L, MTrees0, MTrees, MTree0, MTree)
-   --> {is_event_(A), !},
-       take_event(A, L1, L2, L, MTrees0, MTrees, MTree0, MTree).
-
-take_item(A, L0, L1, L2, L, MTrees0, MTrees, MTree0, MTree)
-   --> take_non_event(A, L0, L1, L2, L, MTrees0, MTrees, MTree0, MTree).
-*/
 take_event(A, _, L2, [A | L2], MTrees0, MTrees, MTree0, [Node | MTree0])
    --> state_consume(S0, S1, A, true-true),
       {  

@@ -8,7 +8,9 @@
     closed_select/3,
     is_unique_pattern/1,
     make_pattern_unique/2,
-    aggr_vars/3
+    make_pattern_unique_o/2,
+    aggr_vars/3,
+    trans_pat/2
 ]).
 
 :- use_module(library(ordsets)).
@@ -208,6 +210,13 @@ make_pattern_unique(Pattern, Unique)
        pattern_unique(Pattern, Unique0, End-A0, _),
        varnumbers(Unique0, Unique).
 
+make_pattern_unique_o(Pattern, Unique)
+    :- numbervars(Pattern, 0, End),
+       empty_assoc(A0),
+       pattern_unique(Pattern, Unique0, End-A0, _),
+       trans_pat(Unique0, Unique1),
+       varnumbers(Unique1, Unique).
+
 pattern_unique(event(T, X), event(T, Y), S0, S) :- ren_var_(X, Y, S0, S).
 pattern_unique(iter(P0), iter(P), S0, S)
     :- pattern_unique(iter(P0, []), iter(P, []), S0, S).
@@ -253,3 +262,75 @@ pattern_unique(select(Input0, Output0, P0), select(Input, Output, P), S0, M-A)
 ren_var_('$VAR'(N), '$VAR'(M0), M0-A0, M-A)
     :- M #= M0 + 1,
        put_assoc(N, A0, M0, A).
+
+/* transform for efficiency */
+
+%trans_pat_c(filter(iter(P0, [X=count]), X #= Y), fiter2(P, [X=count], X #=Y))
+
+
+
+
+trans_pat(select(In, Out, P0), select(In, Out, P)) :- !, trans_pat(P0, P).
+trans_pat(event(T, X), event(T,X)) :- !.
+trans_pat(iter(P0), iter(P)) :- !, trans_pat(P0, P).
+trans_pat(iter(P0, L), iter(P, L)) :- !, trans_pat(P0, P).
+trans_pat(P1 or P2, Q1 or Q2) :- !,  trans_pat(P1, Q1), trans_pat(P2, Q2).
+trans_pat(P1 and P2, Q1 and Q2) :- !, trans_pat(P1, Q1), trans_pat(P2, Q2).
+trans_pat(P1 then P2, Q1 then Q2) :- !, trans_pat(P1, Q1), trans_pat(P2, Q2).
+trans_pat(noskip(P0, Q), noskip(P, Q)) :- !, trans_pat(P0, P).
+trans_pat(filter(event(T, X), C0), fevent(T, X, C1, C0))
+     :- split_time_cond(C0, X, C1), !.
+trans_pat(filter(iter(P0, L), C0), filter(fiter(P, L, C1), C0))
+    :-  split_iter_cond(C0, L, C1), !, trans_pat(P0, P).
+trans_pat(filter(P0, C), filter(P, C)) :- !, trans_pat(P0, P).
+
+split_cond_(A, [A]) :- var(A), !.
+split_cond_(A #/\ B, X) 
+    :- !, split_cond_(A, X1), split_cond_(B, X2), append(X1, X2, X).
+split_cond_(A, [A]).
+
+%unsplit_cond_([], 1 #= 1).
+unsplit_cond_([A|As], C) 
+    :- foldl(
+            [X, C0, (C0 #/\ X)]>>true, As, A, C
+       ).
+
+find_var_(X, [X=E|_], E).
+find_var_(X, [Y=_|L], E) :- dif(X, Y), find_var_(X, L, E).
+
+match_time_(X, (ref(X, time) #< _)).
+
+match_aggr_(Ls, (X #< _)) 
+    :- find_var_(X, Ls, Aggr), !, 
+       memberchk(Aggr, [count]).
+
+match_aggr_(Ls, (X #=< _)) 
+    :- find_var_(X, Ls, Aggr), !, 
+       memberchk(Aggr, [count]).
+
+match_aggr_(Ls, (X #=< _)) 
+    :- find_var_(X, Ls, Aggr), !, 
+       memberchk(Aggr, [count]).
+/*match_aggr_(Ls, (X #> _))
+    :- find_var_(X, Ls, Aggr), !, 
+       memberchk(Aggr, [min(E)]).*/
+
+adjust_cond_(X #=< Y, X #< Y).
+adjust_cond_(X #= Y, X #< Y).
+adjust_cond_(X #< Y, X #< Y - 1).
+
+id_adjust_(X, X).
+
+split_cond(Pred, Adj, C0, C1)
+    :- split_cond_(C0, L0),
+       include(Pred, L0, L10),
+       maplist(Adj, L10, L1),
+       unsplit_cond_(L1, C1). 
+
+split_time_cond(C0, X, C1)
+    :- split_cond(match_time_(X), id_adjust_, C0, C1).
+
+split_iter_cond(C0, Ls, C1)
+    :- split_cond(match_aggr_(Ls), adjust_cond_, C0, C1).
+       
+

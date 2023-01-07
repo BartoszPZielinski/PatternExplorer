@@ -34,7 +34,7 @@ compile_patterns
 
 compile_pattern(I)
 :-   pattern(I, Pattern0, _), 
-     make_pattern_unique(Pattern0, Pattern),
+     make_pattern_unique_o(Pattern0, Pattern),
      assert_regular(I, Pattern),
      format('Pattern ~w compiled ~n', [I]).
 

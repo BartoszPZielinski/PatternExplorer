@@ -178,13 +178,12 @@ finalize_goal(X0=time, X, X0-X, event_types:event_time(X0, X)).
 
 mod_skip(Type, V0, C0, skip(S, V, L0), skip(S,  V, L))
    :- renumber_var(V0, V, C0, C),
-      mod_or_add_skip_rules(Type, C, L0, L).
+      join_skips(Type-C, L0, L).
 
-mod_or_add_skip_rules(Type, C, [], [Type-C]).
-mod_or_add_skip_rules(Type, C, [Type-C0 | L0], [Type-(C, C0) |L0]).
-mod_or_add_skip_rules(Type, C, [Type0-C0 | L0], [Type0-C0 | L])
-:- dif(Type, Type0),
-   mod_or_add_skip_rules(Type, C, L0, L).
+join_skips(Type-C, [], [Type-C]).
+join_skips(Type-C, [Type-C0 | L0], [Type-(C, C0) |L0]).
+join_skips(Type-C, [Type0-C0 | L0], [Type0-C0 | L])
+   :- dif(Type, Type0), join_skips(Type-C, L0, L).
 
 /*
     And helpers
@@ -227,14 +226,7 @@ merge_skips_(F1, F2, skip(S1, V1, L1), skip(S2, V2, L2), skip(S, V2, L))
    :- (dif(F1, S1) ; dif(F2, S2)),
       merge_states(S1, S2, S),
       renumber_var(V1, V2, L1, L11),
-      foldl([Pair, Spec0, Spec]>>merge_spec(Spec0, Pair, Spec), L11, L2, L). 
-
-merge_spec([], Pair, [Pair]).
-merge_spec([Type-Cond0|Spec0], Type-Cond, [Type-(Cond0, Cond)|Spec0]) 
-:- !.
-merge_spec([Type0-Cond0|Spec0], Type-Cond, [Type0-Cond0|Spec])
-:- dif(Type0, Type),
-   merge_spec(Spec0, Type-Cond, Spec).
+      foldl(join_skips, L11, L2, L). 
 
 merge_trans_skip_(
    Dir,
@@ -242,15 +234,23 @@ merge_trans_skip_(
    skip(S2, V1, Spec), 
    (trans(V, Type, pos([H|L]), Sub, Sm0, Sm1):-C, G)
 ) :-  maplist(merge_states(Dir), [S0, S1], [S2, S2], [Sm0, Sm1]),
-      type_spec_cond(Type, Spec, C0),
+      type_spec_cond(Type, Spec, true, C0),
       renumber_var(V1, V, C0, C),
       (Dir=left -> H = p(1) ; H = p(2)). 
 
-type_spec_cond(_, [],  true).
-type_spec_cond(Type, [Type-C|_], C) :- !.
-type_spec_cond(Type, [Type1-_|L], C)
-   :- dif(Type, Type1),
-      type_spec_cond(Type, L, C).
+and_cond_(true, C, C) :- !.
+and_cond_(false, _, false) :- !.
+and_cond_(_, false, false) :- !.
+and_cond_(C, true, C) :- !.
+and_cond_(C0, C, (C0, C)) :- !.
+
+type_spec_cond(_, [],  C, C) :- !.
+type_spec_cond(Type, [Type-C1|L], C2, C) 
+   :- and_cond_(C1, C2, C0), type_spec_cond(Type, L, C0, C), !.
+type_spec_cond(Type, [any-C1|L], C2, C) 
+   :- and_cond_(C1, C2, C0), type_spec_cond(Type, L, C0, C), !.
+type_spec_cond(Type, [Type1-_|L],C0, C)
+   :- dif(Type, Type1), type_spec_cond(Type, L, C0, C).
 
 merge_trans_(
          (trans(V1, Type, pos(L1), Sub1, S10, S11) :- G1),

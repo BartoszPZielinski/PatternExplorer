@@ -53,6 +53,19 @@ comp_aut(event(Type, V), Auto)
             mk_auto(S0, [S1], [r(trans, [T]), r(skips, [skip(S0, V1, [])])], Auto)
        }.
 
+comp_aut(fevent(Type, V, CT0, C0), Auto) 
+   --> fresh_var(V1),
+       add_var(Vs0, V, Vs),
+       fresh_states([S0, S1], [Vs0, Vs]),
+       {renumber_var(V, V1, CT0, CT1)},
+       cond_trans(CT1, CT),
+       cond_trans(C0, C),
+       {
+            empty_assoc(Subst),
+            T = (trans(V, Type, pos([]), Subst, S0, S1) :- C),
+            mk_auto(S0, [S1], [r(trans, [T]), r(skips, [skip(S0, V1, [any-CT])])], Auto)
+       }.
+
 comp_aut(P1 then P2, Auto)
    --> comp_aut(P1, Auto1),
        comp_aut(P2, Auto2),
@@ -134,6 +147,39 @@ comp_aut(iter(P, List0), Auto)
                ], Auto1, Auto)
           }. 
 
+
+comp_aut(fiter(P, List0, CT0), Auto)
+         --> current_vars(Vs0),
+             comp_aut(P, Auto0),
+             get_count_var(List0, CVar, List),
+             {
+                  maplist([X = _, X]>>true, List, Xs0),
+                  list_to_ord_set(Xs0, Xs),
+                  ord_union(Vs0, Xs, Vs)
+             },
+             replace_vars(_, Vs),
+             fresh_states([IterInit, IterFinal], [Vs0, Vs]),
+             args_fresh_vars(Xs0, Xs1),
+             terms_trans_goals_(List, ListT, GList0),
+             term_trans_goals(CT0, CT, CTList),
+             {
+                  add_vars_to_auto(Xs0, Auto0, Auto1),
+                  maplist(append_iter(CVar), Auto1.trans, Trans0),
+                  mod_time_trans(List0, Trans0, Trans),
+                  maplist(init_expr, ListT, Pairs),
+                  epsrev(Pairs, Auto1.initial, IterInit, Ei),
+                  append(CTList, GList0, GList1),
+                  iter_eps(update_goal, Auto1.final-Auto1.initial, 
+                           ListT-[CT|GList1], Xs1, Eu),
+                  iter_eps(finalize_goal, Auto1.final-IterFinal, 
+                           ListT-GList0, Xs1, Ef),
+                  mod_auto([
+                     aa(epses, [Ef, Eu, [Ei]]),
+                     r(initial, IterInit), r(trans, Trans), r(final, [IterFinal])
+                  ], Auto1, Auto)
+             }. 
+   
+
 comp_aut(filter(P, Cond), Auto)
    --> comp_aut(P, Auto0),
        current_vars(Vs),
@@ -165,7 +211,9 @@ pat_nskip_(filter(P, C), NS)
       maplist(add_ns_cond_(C), NS0, NS).
 pat_nskip_(event(Type, X), [nskip(X, Type, 1 #= 1)]).
 
-add_ns_cond_(C1, nskip(X, Type, C2), nskip(X, Type, C1 #/\ C2)).
+add_ns_cond_(C1, nskip(X, Type, 1 #= 1), nskip(X, Type, C1)) :- ! .
+add_ns_cond_(C1, nskip(X, Type, C2), nskip(X, Type, C1 #/\ C2)) 
+   :- dif(C2, 1 #= 1), !.
 
 /*
    Asserting compiled automaton.
