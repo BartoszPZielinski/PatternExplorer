@@ -11,5 +11,3 @@ A complete documentation can be found in the [project page](https://bartoszpziel
 ## Authors
 
 Bartosz Zieliński bartosz.zielinski@fis.uni.lodz.pl 
-
-Paweł Maślanka pmaslan@uni.lodz.pl
