@@ -1,91 +1,25 @@
 === Example and tests
 
-Apart from the app code itself, `PatternExplorer` folder also contains some files related to examples and tests
+Apart from the app code itself, `PatternExplorer` folder also contains some files related to examples and tests. All the files below aside from 
+`example_data.pl` are inside `tests` subfolder.
 
 ==== example_data.pl
 
 This file contains definition of bus traffic control event schema and example patterns and tests. The format is described in section <<_input_file_syntax>>.
 
-==== aux_types_data.pl
-
-This file contains definitions of spurious event types used in the timing test 
-(see section <<_evaluation>>).
-
-==== timed_test.pl
-
-This file contains prolog program which performs tests which times our tool under varying parameters (we also test alternative automaton implementations)
-The script generates csv file named `raw_measurements.csv` (see section
-<<_description_of_generated_csv_file>>). Unfortunately, modifying the test parameters is not very user-friendly. First, the script is tied very strongly to to the patterns (100 and 101 in `example_data.pl`) and their parametrization and input and output events (see the definition of `run_/4` in this file). Other parameters can be modified by modifying definitions of predicates `files/3`, `ids/1`, and `mtests/2`:
-
-* Definition of `files/3` is of the form 
-+
---
-[source, prolog]
-----
-files(⟨InputFile⟩, ⟨AuxFile⟩, ⟨OutputFile⟩).
-----
-
-means that the schema declaration will be taken from file `⟨InputFile⟩,`, definition of spurious types will be taken from file `⟨AuxFile⟩`m and the measurements will be written to csv file `⟨OutputFile⟩` (see section <<_description_of_generated_csv_file>> for the description of columns in this file)
---
-
-* Definition of `ids/1` is of the form 
-+
---
-[source, prolog]
-----
-ids(⟨id₁⟩-⟨id₂⟩)
-----
-
-where we search for instances of pattern with identifier `⟨id₁⟩` which also match pattern with identifier `⟨id₂⟩`. If you modify this remember that the search defined in predicate `run_/4` depend on both patterns having appropriate input and output events and being parametrized by special event `lambda(par)`.
---
-
-* Definition of `mtests/2` is currently of the form 
-+
---
-[source, prolog]
-----
-mtests(
-    [
-        m('match_list', MatchList),
-        m('match_list_ns', MatchListNS),
-        m('match_list_nsc', MatchListNSCBasic)
-    ],
-    [
-        m('match_list', MatchList),
-        m('match_list_ns', MatchListNS),
-        m('match_list_nsc', MatchListNSCExt)
-    ]
-) :- make_tests(5, ⟨Tests₁⟩, MatchList),
-     make_tests(5, ⟨Tests₂⟩, MatchListNS),
-     make_tests(5, ⟨Tests₃⟩, MatchListNSCBasic),
-     make_tests(5, ⟨Tests₄⟩, MatchListNSCExt).
-----
-
-where each of the arguments of `mtests/2` defines a set of tests for basic bus traffic control schema and schema extended by spurious types. Each set of tests consists of three parts where we test each of the automaton implementations. Implementations are identified by constants `match_list`, `match_list_ns` and 
-`match_list_nsc` (see section <<_description_of_generated_csv_file>> for explanation). Note that we currently share some tests subsets among implementations and event schemas. Test subsets are passed as user-unfriendly terms generated from user-friendly terms ⟨Testsᵢ⟩ by `make_tests/3`. The first argument of `make_tests/3` 
-is the number of repetitions of each tests (currently 5 times). Each of the terms 
-⟨Testsᵢ⟩ is a Prolog list of the form 
-
-[source, prolog]
-----
-[
-  ⟨λ₁⟩-[⟨m₁⟩, ⟨m₂⟩, …],
-  ⟨λ₂⟩-[⟨n₁⟩, ⟨n₂⟩, …],
-  …
-]
-----
-where `⟨λ₁⟩, ⟨λ₂⟩, …` are values of the λ parameter of tested patterns, and 
-`⟨m₁⟩, ⟨m₂⟩, …, ⟨n₁⟩, ⟨n₂⟩, …` are maximal lengths of solutions. Thus, according to the above, we will run the search for instances with maximal lenghts m₁, m₂, …   for λ = λ₁, then for instances maximal lenghts n₁, n₂, …   for λ = λ₂, etc.
---
-
-==== create_plot.py
-
-This is a Python3 script which processes `raw_measurements.csv` file and generates plots used in the paper (see section <<_evaluation>>).
-
-==== auto_noskip.pl
+==== auto_simple.pl
 
 This is an alternative implementation of search automaton used in timing tests (section <<_evaluation>>)  which represents single skipped events by constrained variables.
 
-==== auto_noskip_conc.pl
+==== timed_test.pl
 
-This is an alternative implementation of search automaton used in timing tests (section <<_evaluation>>) which narrows skipped events so that each has a type.
+This file contains prolog program which performs tests which times our tool under varying parameters (we use alternative automaton implementation).
+Unfortunately, modifying the test parameters is not very user-friendly.
+
+==== analyze_test.py
+
+This is a Python3 script which processes csv file with raw results produced by `timed_test.pl` file and generates plots used in the paper (see section <<_evaluation>>). The script assumes that the csv file is named `test.csv` and produces files named `nsols.png` and `cpu.png`. To change that one has to modify the source file. 
+
+==== test.csv
+
+This is the file generated by `timed_test.pl` on author's computer. We included it in the repository for reproducibility.

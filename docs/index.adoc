@@ -1,5 +1,5 @@
 = Documentation for PatternExplorer Tool.
-Bartosz Zieliński <bartosz.zielinski@fis.uni.lodz.pl>; Paweł Maślanka <pawel.maslanka@fis.uni.lodz.pl>
+Bartosz Zieliński <bartosz.zielinski@fis.uni.lodz.pl>
 :toc: left
 :toclevels: 4 
 :icons: font

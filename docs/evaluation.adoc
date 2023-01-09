@@ -1,41 +1,46 @@
 == Evaluation
 
-In order to rerun the tests call (in the `PatternExplorer` folder)
+In order to rerun the tests call (in the `PatternExplorer/tests` folder)
 
 [source, bash]
 ----
 swipl timed_test.pl
 ----
 
-Test will run for a long time, and after the end the interpreter quits automatically. See <<_timed_test_pl>> for information about how to modify tests.
-The successful run should generate file `raw_mesurements.csv`.
+and then in the prompt run 
+the following goal (perhaps modifying output file name)
 
-In order to regenerate from `raw_mesurements.csv` the plot in the paper run
+[source, prolog]
+----
+run_tests('test.csv')
+----
+
+Test will run for a long time, and after the end the interpreter quits automatically. See <<_timed_test_pl>> for information about how to modify tests.
+The successful run should generate file `test.csv` (or some other depending on the argument).
+
+In order to regenerate from `test.csv` the plots in the paper run
 [source, bash]
 ----
-python3 create_plot.py
+python3 analyze_test.py
 ----
-This should generate file `fig2.png` with the pplot. The script apart from python3 requires link:https://docs.python.org/3/library/csv.html[csv] and 
-link:https://matplotlib.org/[matplotlib] libraries installed.
+This should generate file `cpu.png` and `nsols.png`. In order to change the input and output files modify the source file in an obvious way. The script apart from python3 requires libraries link:https://docs.python.org/3/library/csv.html[csv] and 
+link:https://matplotlib.org/[matplotlib] which may need to be installed.
 
 === Description of generated csv file 
 
 The generated csv file contains the following fields:
 
-`matcher`:: matching automaton implementation. Possible values are:
-`match_list`::: the current implementation
-`match_list_ns`::: implementation which represents single skipped events by constrained variables
-`match_list_nsc`::: implementation which narrows skipped events so that each has a type.
-ntypes:: number of types used in the event schema. Possible values are:
-basic::: just types actually used in the bus traffic example
-aux::: types in the bus traffic example plus 20 additional spurious types.
-`max_len`:: maximal length of generated/matched instance
-`lambda`:: parameter of patterns used in the tests 
+`opt`:: Pattern and time window choice. Possible values are:
+`d20`::: Pattern 1 (less efficient) and Δ=20p
+`d40`::: Pattern 1 (less efficient) and Δ=40p
+`d20_nm`::: Pattern 2 (more efficient) and Δ=20p
+`d40_nm`::: Pattern 2 (more efficient) and Δ=40p
+`success`:: value `timeout` if test timeouted (after 60s) and `success` otherwise
+`size`:: the size of generated stream fragment for this test
+`parameter`:: Number of iterations in the pattern.
+`nsols`:: Number of matchings found (0 for timeouted matchings)
 `wall`:: total time of search
 `cpu`:: cpu time of search
 `inferences`:: number of inferences.
 
-=== Raw test results
-
-The raw test results used in the paper can be downloaded link:raw_mesurements.csv[here].
 

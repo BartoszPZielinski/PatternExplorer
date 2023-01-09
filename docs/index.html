@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.17">
-<meta name="author" content="Bartosz Zieliński, Paweł Maślanka">
+<meta name="author" content="Bartosz Zieliński">
 <title>Documentation for PatternExplorer Tool.</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
@@ -444,8 +444,6 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="details">
 <span id="author" class="author">Bartosz Zieliński</span><br>
 <span id="email" class="email"><a href="mailto:bartosz.zielinski@fis.uni.lodz.pl">bartosz.zielinski@fis.uni.lodz.pl</a></span><br>
-<span id="author2" class="author">Paweł Maślanka</span><br>
-<span id="email2" class="email"><a href="mailto:pawel.maslanka@fis.uni.lodz.pl">pawel.maslanka@fis.uni.lodz.pl</a></span><br>
 </div>
 <div id="toc" class="toc2">
 <div id="toctitle">Table of Contents</div>
@@ -494,11 +492,10 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_example_and_tests">Example and tests</a>
 <ul class="sectlevel3">
 <li><a href="#_example_data_pl">example_data.pl</a></li>
-<li><a href="#_aux_types_data_pl">aux_types_data.pl</a></li>
+<li><a href="#_auto_simple_pl">auto_simple.pl</a></li>
 <li><a href="#_timed_test_pl">timed_test.pl</a></li>
-<li><a href="#_create_plot_py">create_plot.py</a></li>
-<li><a href="#_auto_noskip_pl">auto_noskip.pl</a></li>
-<li><a href="#_auto_noskip_conc_pl">auto_noskip_conc.pl</a></li>
+<li><a href="#_analyze_test_py">analyze_test.py</a></li>
+<li><a href="#_test_csv">test.csv</a></li>
 </ul>
 </li>
 </ul>
@@ -506,7 +503,6 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_evaluation">Evaluation</a>
 <ul class="sectlevel2">
 <li><a href="#_description_of_generated_csv_file">Description of generated csv file</a></li>
-<li><a href="#_raw_test_results">Raw test results</a></li>
 </ul>
 </li>
 </ul>
@@ -1528,7 +1524,8 @@ This predicate, however, does not compile patterns.</p>
 <div class="sect2">
 <h3 id="_example_and_tests">Example and tests</h3>
 <div class="paragraph">
-<p>Apart from the app code itself, <code>PatternExplorer</code> folder also contains some files related to examples and tests</p>
+<p>Apart from the app code itself, <code>PatternExplorer</code> folder also contains some files related to examples and tests. All the files below aside from
+<code>example_data.pl</code> are inside <code>tests</code> subfolder.</p>
 </div>
 <div class="sect3">
 <h4 id="_example_data_pl">example_data.pl</h4>
@@ -1537,115 +1534,28 @@ This predicate, however, does not compile patterns.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_aux_types_data_pl">aux_types_data.pl</h4>
-<div class="paragraph">
-<p>This file contains definitions of spurious event types used in the timing test
-(see section <a href="#_evaluation">Evaluation</a>).</p>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_timed_test_pl">timed_test.pl</h4>
-<div class="paragraph">
-<p>This file contains prolog program which performs tests which times our tool under varying parameters (we also test alternative automaton implementations)
-The script generates csv file named <code>raw_measurements.csv</code> (see section
-<a href="#_description_of_generated_csv_file">Description of generated csv file</a>). Unfortunately, modifying the test parameters is not very user-friendly. First, the script is tied very strongly to to the patterns (100 and 101 in <code>example_data.pl</code>) and their parametrization and input and output events (see the definition of <code>run_/4</code> in this file). Other parameters can be modified by modifying definitions of predicates <code>files/3</code>, <code>ids/1</code>, and <code>mtests/2</code>:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Definition of <code>files/3</code> is of the form</p>
-<div class="openblock">
-<div class="content">
-<div class="listingblock">
-<div class="content">
-<pre class="highlight"><code class="language-prolog" data-lang="prolog">files(⟨InputFile⟩, ⟨AuxFile⟩, ⟨OutputFile⟩).</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>means that the schema declaration will be taken from file <code>⟨InputFile⟩,</code>, definition of spurious types will be taken from file <code>⟨AuxFile⟩`m and the measurements will be written to csv file `⟨OutputFile⟩</code> (see section <a href="#_description_of_generated_csv_file">Description of generated csv file</a> for the description of columns in this file)</p>
-</div>
-</div>
-</div>
-</li>
-<li>
-<p>Definition of <code>ids/1</code> is of the form</p>
-<div class="openblock">
-<div class="content">
-<div class="listingblock">
-<div class="content">
-<pre class="highlight"><code class="language-prolog" data-lang="prolog">ids(⟨id₁⟩-⟨id₂⟩)</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>where we search for instances of pattern with identifier <code>⟨id₁⟩</code> which also match pattern with identifier <code>⟨id₂⟩</code>. If you modify this remember that the search defined in predicate <code>run_/4</code> depend on both patterns having appropriate input and output events and being parametrized by special event <code>lambda(par)</code>.</p>
-</div>
-</div>
-</div>
-</li>
-<li>
-<p>Definition of <code>mtests/2</code> is currently of the form</p>
-<div class="openblock">
-<div class="content">
-<div class="listingblock">
-<div class="content">
-<pre class="highlight"><code class="language-prolog" data-lang="prolog">mtests(
-    [
-        m('match_list', MatchList),
-        m('match_list_ns', MatchListNS),
-        m('match_list_nsc', MatchListNSCBasic)
-    ],
-    [
-        m('match_list', MatchList),
-        m('match_list_ns', MatchListNS),
-        m('match_list_nsc', MatchListNSCExt)
-    ]
-) :- make_tests(5, ⟨Tests₁⟩, MatchList),
-     make_tests(5, ⟨Tests₂⟩, MatchListNS),
-     make_tests(5, ⟨Tests₃⟩, MatchListNSCBasic),
-     make_tests(5, ⟨Tests₄⟩, MatchListNSCExt).</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>where each of the arguments of <code>mtests/2</code> defines a set of tests for basic bus traffic control schema and schema extended by spurious types. Each set of tests consists of three parts where we test each of the automaton implementations. Implementations are identified by constants <code>match_list</code>, <code>match_list_ns</code> and
-<code>match_list_nsc</code> (see section <a href="#_description_of_generated_csv_file">Description of generated csv file</a> for explanation). Note that we currently share some tests subsets among implementations and event schemas. Test subsets are passed as user-unfriendly terms generated from user-friendly terms ⟨Testsᵢ⟩ by <code>make_tests/3</code>. The first argument of <code>make_tests/3</code>
-is the number of repetitions of each tests (currently 5 times). Each of the terms
-⟨Testsᵢ⟩ is a Prolog list of the form</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlight"><code class="language-prolog" data-lang="prolog">[
-  ⟨λ₁⟩-[⟨m₁⟩, ⟨m₂⟩, …],
-  ⟨λ₂⟩-[⟨n₁⟩, ⟨n₂⟩, …],
-  …
-]</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>where <code>⟨λ₁⟩, ⟨λ₂⟩, …</code> are values of the λ parameter of tested patterns, and
-<code>⟨m₁⟩, ⟨m₂⟩, …, ⟨n₁⟩, ⟨n₂⟩, …</code> are maximal lengths of solutions. Thus, according to the above, we will run the search for instances with maximal lenghts m₁, m₂, …   for λ = λ₁, then for instances maximal lenghts n₁, n₂, …   for λ = λ₂, etc.</p>
-</div>
-</div>
-</div>
-</li>
-</ul>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_create_plot_py">create_plot.py</h4>
-<div class="paragraph">
-<p>This is a Python3 script which processes <code>raw_measurements.csv</code> file and generates plots used in the paper (see section <a href="#_evaluation">Evaluation</a>).</p>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_auto_noskip_pl">auto_noskip.pl</h4>
+<h4 id="_auto_simple_pl">auto_simple.pl</h4>
 <div class="paragraph">
 <p>This is an alternative implementation of search automaton used in timing tests (section <a href="#_evaluation">Evaluation</a>)  which represents single skipped events by constrained variables.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_auto_noskip_conc_pl">auto_noskip_conc.pl</h4>
+<h4 id="_timed_test_pl">timed_test.pl</h4>
 <div class="paragraph">
-<p>This is an alternative implementation of search automaton used in timing tests (section <a href="#_evaluation">Evaluation</a>) which narrows skipped events so that each has a type.</p>
+<p>This file contains prolog program which performs tests which times our tool under varying parameters (we use alternative automaton implementation).
+Unfortunately, modifying the test parameters is not very user-friendly.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_analyze_test_py">analyze_test.py</h4>
+<div class="paragraph">
+<p>This is a Python3 script which processes csv file with raw results produced by <code>timed_test.pl</code> file and generates plots used in the paper (see section <a href="#_evaluation">Evaluation</a>). The script assumes that the csv file is named <code>test.csv</code> and produces files named <code>nsols.png</code> and <code>cpu.png</code>. To change that one has to modify the source file.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_test_csv">test.csv</h4>
+<div class="paragraph">
+<p>This is the file generated by <code>timed_test.pl</code> on author&#8217;s computer. We included it in the repository for reproducibility.</p>
 </div>
 </div>
 </div>
@@ -1655,7 +1565,7 @@ is the number of repetitions of each tests (currently 5 times). Each of the term
 <h2 id="_evaluation">Evaluation</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>In order to rerun the tests call (in the <code>PatternExplorer</code> folder)</p>
+<p>In order to rerun the tests call (in the <code>PatternExplorer/tests</code> folder)</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -1663,20 +1573,29 @@ is the number of repetitions of each tests (currently 5 times). Each of the term
 </div>
 </div>
 <div class="paragraph">
-<p>Test will run for a long time, and after the end the interpreter quits automatically. See <a href="#_timed_test_pl">timed_test.pl</a> for information about how to modify tests.
-The successful run should generate file <code>raw_mesurements.csv</code>.</p>
-</div>
-<div class="paragraph">
-<p>In order to regenerate from <code>raw_mesurements.csv</code> the plot in the paper run</p>
+<p>and then in the prompt run
+the following goal (perhaps modifying output file name)</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-bash" data-lang="bash">python3 create_plot.py</code></pre>
+<pre class="highlight"><code class="language-prolog" data-lang="prolog">run_tests('test.csv')</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>This should generate file <code>fig2.png</code> with the pplot. The script apart from python3 requires <a href="https://docs.python.org/3/library/csv.html">csv</a> and
-<a href="https://matplotlib.org/">matplotlib</a> libraries installed.</p>
+<p>Test will run for a long time, and after the end the interpreter quits automatically. See <a href="#_timed_test_pl">timed_test.pl</a> for information about how to modify tests.
+The successful run should generate file <code>test.csv</code> (or some other depending on the argument).</p>
+</div>
+<div class="paragraph">
+<p>In order to regenerate from <code>test.csv</code> the plots in the paper run</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">python3 analyze_test.py</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This should generate file <code>cpu.png</code> and <code>nsols.png</code>. In order to change the input and output files modify the source file in an obvious way. The script apart from python3 requires libraries <a href="https://docs.python.org/3/library/csv.html">csv</a> and
+<a href="https://matplotlib.org/">matplotlib</a> which may need to be installed.</p>
 </div>
 <div class="sect2">
 <h3 id="_description_of_generated_csv_file">Description of generated csv file</h3>
@@ -1685,49 +1604,45 @@ The successful run should generate file <code>raw_mesurements.csv</code>.</p>
 </div>
 <div class="dlist">
 <dl>
-<dt class="hdlist1"><code>matcher</code></dt>
+<dt class="hdlist1"><code>opt</code></dt>
 <dd>
-<p>matching automaton implementation. Possible values are:</p>
+<p>Pattern and time window choice. Possible values are:</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1"><code>match_list</code></dt>
+<dt class="hdlist1"><code>d20</code></dt>
 <dd>
-<p>the current implementation</p>
+<p>Pattern 1 (less efficient) and Δ=20p</p>
 </dd>
-<dt class="hdlist1"><code>match_list_ns</code></dt>
+<dt class="hdlist1"><code>d40</code></dt>
 <dd>
-<p>implementation which represents single skipped events by constrained variables</p>
+<p>Pattern 1 (less efficient) and Δ=40p</p>
 </dd>
-<dt class="hdlist1"><code>match_list_nsc</code></dt>
+<dt class="hdlist1"><code>d20_nm</code></dt>
 <dd>
-<p>implementation which narrows skipped events so that each has a type.</p>
+<p>Pattern 2 (more efficient) and Δ=20p</p>
+</dd>
+<dt class="hdlist1"><code>d40_nm</code></dt>
+<dd>
+<p>Pattern 2 (more efficient) and Δ=40p</p>
 </dd>
 </dl>
 </div>
 </dd>
-<dt class="hdlist1">ntypes</dt>
+<dt class="hdlist1"><code>success</code></dt>
 <dd>
-<p>number of types used in the event schema. Possible values are:</p>
-<div class="dlist">
-<dl>
-<dt class="hdlist1">basic</dt>
-<dd>
-<p>just types actually used in the bus traffic example</p>
+<p>value <code>timeout</code> if test timeouted (after 60s) and <code>success</code> otherwise</p>
 </dd>
-<dt class="hdlist1">aux</dt>
+<dt class="hdlist1"><code>size</code></dt>
 <dd>
-<p>types in the bus traffic example plus 20 additional spurious types.</p>
+<p>the size of generated stream fragment for this test</p>
 </dd>
-</dl>
-</div>
-</dd>
-<dt class="hdlist1"><code>max_len</code></dt>
+<dt class="hdlist1"><code>parameter</code></dt>
 <dd>
-<p>maximal length of generated/matched instance</p>
+<p>Number of iterations in the pattern.</p>
 </dd>
-<dt class="hdlist1"><code>lambda</code></dt>
+<dt class="hdlist1"><code>nsols</code></dt>
 <dd>
-<p>parameter of patterns used in the tests</p>
+<p>Number of matchings found (0 for timeouted matchings)</p>
 </dd>
 <dt class="hdlist1"><code>wall</code></dt>
 <dd>
@@ -1744,18 +1659,12 @@ The successful run should generate file <code>raw_mesurements.csv</code>.</p>
 </dl>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_raw_test_results">Raw test results</h3>
-<div class="paragraph">
-<p>The raw test results used in the paper can be downloaded <a href="raw_mesurements.csv">here</a>.</p>
-</div>
-</div>
 </div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2022-12-27 08:24:33 +0100
+Last updated 2023-01-09 01:00:52 +0100
 </div>
 </div>
 </body>
