@@ -1,5 +1,7 @@
 === Example and tests
 
+Bartosz Zieliński <bartosz.zielinski@fis.uni.lodz.pl>
+
 Apart from the app code itself, `PatternExplorer` folder also contains some files related to examples and tests. All the files below aside from 
 `example_data.pl` are inside `tests` subfolder.
 
