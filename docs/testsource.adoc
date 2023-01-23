@@ -17,6 +17,19 @@ This is an alternative implementation of search automaton used in timing tests (
 
 This file contains prolog program which performs tests which times our tool under varying parameters (we use alternative automaton implementation).
 Unfortunately, modifying the test parameters is not very user-friendly.
+That said, in order to modify patterns, one can modify definition of predicate 
+`pattern/2` (in the file it has two clauses with first argument 1 or 2, and the second one defining the pattern). Another place for modifications is modifying the 
+`test_points_spec_/1` predicate definition which describes measurements. It has a single argument which is a list of terms of the form `t(X,L)`, where `X` corresponds to the choice of pattern and time window (see below the description of the generated CSV file) and the second argument is a list describing points generated for the choice of `X`. Each element of this list has the form `x(Par, D, Pairs)`, 
+where `Par` is the value of pattern parameter, and Pairs describes list of stream sizes. `D` is added to each element of the generated list of sizes so that each case is shifted slightly on the plot. `Pairs` has the form of a list of pairs. List Pairs of the form 
+[source, prolog]
+----
+[m₁-Δ₁,m₂-Δ₂,...,mᵢ-Δᵢ]
+----
+describes list of sizes of the form
+[source, prolog]
+----
+[Δ₁, 2Δ₁, ..., m₁Δ₁, m₁Δ₁+Δ₂, m₁Δ₁+2Δ₂, ...]
+----
 
 ==== analyze_test.py
 

@@ -1548,7 +1548,24 @@ This predicate, however, does not compile patterns.</p>
 <h4 id="_timed_test_pl">timed_test.pl</h4>
 <div class="paragraph">
 <p>This file contains prolog program which performs tests which times our tool under varying parameters (we use alternative automaton implementation).
-Unfortunately, modifying the test parameters is not very user-friendly.</p>
+Unfortunately, modifying the test parameters is not very user-friendly.
+That said, in order to modify patterns, one can modify definition of predicate
+<code>pattern/2</code> (in the file it has two clauses with first argument 1 or 2, and the second one defining the pattern). Another place for modifications is modifying the
+<code>test_points_spec_/1</code> predicate definition which describes measurements. It has a single argument which is a list of terms of the form <code>t(X,L)</code>, where <code>X</code> corresponds to the choice of pattern and time window (see below the description of the generated CSV file) and the second argument is a list describing points generated for the choice of <code>X</code>. Each element of this list has the form <code>x(Par, D, Pairs)</code>,
+where <code>Par</code> is the value of pattern parameter, and Pairs describes list of stream sizes. <code>D</code> is added to each element of the generated list of sizes so that each case is shifted slightly on the plot. <code>Pairs</code> has the form of a list of pairs. List Pairs of the form</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-prolog" data-lang="prolog">[m₁-Δ₁,m₂-Δ₂,...,mᵢ-Δᵢ]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>describes list of sizes of the form</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-prolog" data-lang="prolog">[Δ₁, 2Δ₁, ..., m₁Δ₁, m₁Δ₁+Δ₂, m₁Δ₁+2Δ₂, ...]</code></pre>
+</div>
 </div>
 </div>
 <div class="sect3">
